@@ -1,0 +1,350 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  LocalVideoTrack,
+  Room,
+  RoomEvent,
+  Track,
+  VideoPresets,
+  VideoQuality,
+  type RemoteTrack,
+  type RemoteTrackPublication
+} from 'livekit-client';
+import { useApp } from '@/lib/app';
+import { useT } from '@/lib/i18n';
+import { sb } from '@/lib/supabase';
+import type { Call, MiniProfile } from '@/lib/types';
+import { Avatar, Icon } from '../ui';
+
+type Phase = 'ringing' | 'connecting' | 'live' | 'ended';
+type Mode = 'auto' | 'hd' | 'eco';
+
+const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://inner-t2lpfjqp.livekit.cloud';
+
+export default function CallScreen({ call, onClose }: { call: Call; onClose: () => void }) {
+  const { t } = useT();
+  const { userId, dataSaver } = useApp();
+  const isCaller = call.caller_id === userId;
+  const otherId = isCaller ? call.callee_id : call.caller_id;
+  const isVideo = call.kind === 'video';
+
+  const [other, setOther] = useState<MiniProfile | null>(null);
+  const [phase, setPhase] = useState<Phase>('ringing');
+  const [note, setNote] = useState('');
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(isVideo);
+  const [remoteVideo, setRemoteVideo] = useState(false);
+  const [mode, setMode] = useState<Mode>(dataSaver ? 'eco' : 'auto');
+  const [facing, setFacing] = useState<'user' | 'environment'>('user');
+  const [seconds, setSeconds] = useState(0);
+
+  const roomRef = useRef<Room | null>(null);
+  const remoteVideoEl = useRef<HTMLVideoElement>(null);
+  const localVideoEl = useRef<HTMLVideoElement>(null);
+  const audioBox = useRef<HTMLDivElement>(null);
+  const closedRef = useRef(false);
+
+  useEffect(() => {
+    sb()
+      .from('profiles')
+      .select('id,username,display_name,avatar_path')
+      .eq('id', otherId)
+      .maybeSingle()
+      .then(({ data }) => setOther(data as MiniProfile));
+  }, [otherId]);
+
+  const finish = useCallback(
+    async (status: Call['status'], message?: string) => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      setPhase('ended');
+      setNote(message || t('callEnded'));
+      roomRef.current?.disconnect();
+      roomRef.current = null;
+      await sb().from('calls').update({ status, ended_at: new Date().toISOString() }).eq('id', call.id);
+      window.setTimeout(onClose, 1200);
+    },
+    [call.id, onClose, t]
+  );
+
+  const join = useCallback(async () => {
+    if (roomRef.current || closedRef.current) return;
+    if (!LK_URL) return finish('ended', t('callsNotReady'));
+    setPhase('connecting');
+    const { data: s } = await sb().auth.getSession();
+    const res = await fetch('/api/livekit-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.session?.access_token || ''}` },
+      body: JSON.stringify({ callId: call.id })
+    });
+    if (!res.ok) return finish('ended', t('callsNotReady'));
+    const { token } = await res.json();
+
+    const eco = mode === 'eco';
+    const preset = eco ? VideoPresets.h360 : VideoPresets.h720;
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      videoCaptureDefaults: { resolution: preset.resolution, facingMode: 'user' },
+      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      publishDefaults: { simulcast: true, videoCodec: 'vp9', videoEncoding: preset.encoding, dtx: true, red: true }
+    });
+    roomRef.current = room;
+
+    room
+      .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
+        if (track.kind === Track.Kind.Video && remoteVideoEl.current) {
+          track.attach(remoteVideoEl.current);
+          setRemoteVideo(true);
+          if (eco) pub.setVideoQuality(VideoQuality.LOW);
+        }
+        if (track.kind === Track.Kind.Audio && audioBox.current) {
+          const el = track.attach();
+          audioBox.current.appendChild(el);
+        }
+      })
+      .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+        track.detach().forEach((el) => el.remove());
+        if (track.kind === Track.Kind.Video) setRemoteVideo(false);
+      })
+      .on(RoomEvent.TrackMuted, (pub) => {
+        if (pub.kind === Track.Kind.Video && pub.source === Track.Source.Camera && !(pub as unknown as { isLocal?: boolean }).isLocal) setRemoteVideo(false);
+      })
+      .on(RoomEvent.TrackUnmuted, (pub) => {
+        if (pub.kind === Track.Kind.Video && pub.source === Track.Source.Camera) setRemoteVideo(true);
+      })
+      .on(RoomEvent.ParticipantDisconnected, () => finish('ended'))
+      .on(RoomEvent.Disconnected, () => finish('ended'));
+
+    try {
+      await room.connect(LK_URL, token);
+      await room.localParticipant.setMicrophoneEnabled(true);
+      if (isVideo) {
+        await room.localParticipant.setCameraEnabled(true);
+        const cam = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+        if (cam && localVideoEl.current) cam.attach(localVideoEl.current);
+      }
+      setPhase('live');
+    } catch {
+      finish('ended', t('permDenied'));
+    }
+  }, [call.id, finish, isVideo, mode, t]);
+
+  // Следим за статусом звонка (ответили, отклонили, положили трубку)
+  useEffect(() => {
+    const ch = sb()
+      .channel('call-' + call.id)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${call.id}` }, (payload) => {
+        const c = payload.new as Call;
+        if (c.status === 'accepted' && isCaller) join();
+        if (c.status === 'declined') finish('declined', t('declinedCall'));
+        if (['ended', 'missed', 'cancelled'].includes(c.status)) finish(c.status);
+      })
+      .subscribe();
+    return () => {
+      sb().removeChannel(ch);
+    };
+  }, [call.id, isCaller, join, finish, t]);
+
+  // Нет ответа 45 секунд — пропущенный
+  useEffect(() => {
+    if (phase !== 'ringing') return;
+    const id = window.setTimeout(() => finish(isCaller ? 'missed' : 'missed', t('noAnswer')), 45000);
+    return () => window.clearTimeout(id);
+  }, [phase, isCaller, finish, t]);
+
+  // Таймер разговора
+  useEffect(() => {
+    if (phase !== 'live') return;
+    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [phase]);
+
+  // Звук и вибрация входящего
+  useEffect(() => {
+    if (phase !== 'ringing' || isCaller) return;
+    let ctx: AudioContext | null = null;
+    try {
+      ctx = new AudioContext();
+    } catch {}
+    const ring = () => {
+      try {
+        navigator.vibrate?.([300, 200, 300]);
+        if (!ctx) return;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.frequency.value = 660;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.8);
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.85);
+      } catch {}
+    };
+    ring();
+    const id = window.setInterval(ring, 2000);
+    return () => {
+      window.clearInterval(id);
+      ctx?.close();
+    };
+  }, [phase, isCaller]);
+
+  useEffect(
+    () => () => {
+      roomRef.current?.disconnect();
+    },
+    []
+  );
+
+  async function accept() {
+    await sb().from('calls').update({ status: 'accepted', answered_at: new Date().toISOString() }).eq('id', call.id);
+    join();
+  }
+
+  async function hangUp() {
+    if (phase === 'ringing') return finish(isCaller ? 'cancelled' : 'declined');
+    finish('ended');
+  }
+
+  async function toggleMic() {
+    const next = !micOn;
+    setMicOn(next);
+    await roomRef.current?.localParticipant.setMicrophoneEnabled(next);
+  }
+
+  async function toggleCam() {
+    const room = roomRef.current;
+    const next = !camOn;
+    setCamOn(next);
+    if (!room) return;
+    await room.localParticipant.setCameraEnabled(next);
+    const cam = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+    if (next && cam && localVideoEl.current) cam.attach(localVideoEl.current);
+  }
+
+  async function flip() {
+    const next = facing === 'user' ? 'environment' : 'user';
+    setFacing(next);
+    const cam = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+    if (cam instanceof LocalVideoTrack) await cam.restartTrack({ facingMode: next });
+  }
+
+  function cycleMode() {
+    const order: Mode[] = ['auto', 'hd', 'eco'];
+    const next = order[(order.indexOf(mode) + 1) % order.length];
+    setMode(next);
+    const room = roomRef.current;
+    if (!room) return;
+    const q = next === 'eco' ? VideoQuality.LOW : next === 'hd' ? VideoQuality.HIGH : VideoQuality.MEDIUM;
+    room.remoteParticipants.forEach((p) =>
+      p.trackPublications.forEach((pub) => {
+        if (pub.kind === Track.Kind.Video) pub.setVideoQuality(q);
+      })
+    );
+    const cam = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+    if (cam instanceof LocalVideoTrack) {
+      const preset = next === 'eco' ? VideoPresets.h360 : VideoPresets.h720;
+      cam.restartTrack({ resolution: preset.resolution, facingMode: facing }).catch(() => {});
+    }
+  }
+
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const ss = String(seconds % 60).padStart(2, '0');
+  const status =
+    phase === 'ended' ? note : phase === 'live' ? `${mm}:${ss}` : phase === 'connecting' ? t('connecting') : isCaller ? t('calling') : t('ringing');
+  const modeLabel = mode === 'auto' ? t('auto') : mode === 'hd' ? t('hd') : t('eco');
+  const modeHint = mode === 'auto' ? t('autoHint') : mode === 'hd' ? t('hdHint') : t('ecoHint');
+  const showVideo = isVideo && remoteVideo && phase === 'live';
+
+  return (
+    <div className="call-stage" role="dialog" aria-modal="true" aria-label={other?.display_name || 'call'} style={{ background: showVideo ? '#000' : 'var(--bg)', color: showVideo ? '#f5f5f7' : 'var(--text)' }}>
+      <video ref={remoteVideoEl} autoPlay playsInline style={{ position: 'absolute', inset: 0, display: showVideo ? 'block' : 'none' }} />
+      <div ref={audioBox} hidden />
+
+      {!showVideo && (
+        <div className="center" style={{ position: 'absolute', inset: 0, flexDirection: 'column', gap: 26, paddingBottom: 140 }}>
+          <div className="center" style={{ width: 236, height: 236, borderRadius: 86, background: 'var(--accent-soft)' }}>
+            <div className="center" style={{ width: 192, height: 192, borderRadius: 70, background: 'var(--accent-soft)' }}>
+              <Avatar p={other} size={146} />
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: -0.7 }}>{other?.display_name || '…'}</h1>
+            <p className="muted" style={{ margin: '6px 0 0', fontSize: 17, fontVariantNumeric: 'tabular-nums' }}>
+              {(isVideo ? t('video') : t('voice')) + ' · ' + status}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {showVideo && (
+        <div className="row" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', left: 16, right: 16, justifyContent: 'center' }}>
+          <div className="glass" style={{ padding: '7px 18px', borderRadius: 22, textAlign: 'center', color: 'var(--text)' }}>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>{other?.display_name}</div>
+            <div className="muted" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+              {status}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isVideo && phase === 'live' && (
+        <button className="glass" onClick={cycleMode} aria-label={modeHint} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', right: 16, height: 44, padding: '0 14px', borderRadius: 22, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+          {modeLabel}
+        </button>
+      )}
+
+      {isVideo && (
+        <div className="call-self" style={{ display: camOn && phase !== 'ringing' ? 'block' : 'none' }}>
+          <video ref={localVideoEl} autoPlay playsInline muted />
+        </div>
+      )}
+
+      <div className="call-controls glass" style={{ color: 'var(--text)' }}>
+        {phase === 'ringing' && !isCaller ? (
+          <>
+            <button className="call-btn end" aria-label={t('decline')} onClick={hangUp}>
+              <span style={{ transform: 'rotate(135deg)', display: 'flex' }}>
+                <Icon name="phone" size={24} stroke={2.2} />
+              </span>
+            </button>
+            <span className="muted" style={{ fontSize: 13 }}>
+              {isVideo ? t('videoCall') : t('voice')}
+            </span>
+            <button className="call-btn answer" aria-label={t('answer')} onClick={accept}>
+              <Icon name={isVideo ? 'video' : 'phone'} size={24} stroke={2.2} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button className={'call-btn' + (micOn ? '' : ' on')} aria-label={t('mic')} aria-pressed={!micOn} onClick={toggleMic}>
+              <Icon name="mic" size={23} />
+            </button>
+            {isVideo && (
+              <button className={'call-btn' + (camOn ? '' : ' on')} aria-label={t('camera')} aria-pressed={!camOn} onClick={toggleCam}>
+                <Icon name="video" size={23} />
+              </button>
+            )}
+            {isVideo && (
+              <button className="call-btn" aria-label={t('flip')} onClick={flip}>
+                <Icon name="flip" size={23} />
+              </button>
+            )}
+            <button className="call-btn end" aria-label={t('end')} onClick={hangUp}>
+              <span style={{ transform: 'rotate(135deg)', display: 'flex' }}>
+                <Icon name="phone" size={24} stroke={2.2} />
+              </span>
+            </button>
+          </>
+        )}
+      </div>
+      {isVideo && phase === 'live' && (
+        <span className="sr-only" aria-live="polite">
+          {modeHint}
+        </span>
+      )}
+    </div>
+  );
+}
