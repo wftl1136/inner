@@ -3,11 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+/** Проверка настройки (без секретов): открой /api/livekit-token в браузере. */
+export async function GET() {
+  return Response.json({
+    livekitKey: Boolean(process.env.LIVEKIT_API_KEY),
+    livekitSecret: Boolean(process.env.LIVEKIT_API_SECRET),
+    keyLooksRight: (process.env.LIVEKIT_API_KEY || '').trim().startsWith('API')
+  });
+}
+
 export async function POST(req: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://genmiditpwrcowwuydsv.supabase.co';
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_1rZink4c1Sg_fPYLXCvwWg_j6VzEeH5';
-  const key = process.env.LIVEKIT_API_KEY;
-  const secret = process.env.LIVEKIT_API_SECRET;
+  const key = process.env.LIVEKIT_API_KEY?.trim();
+  const secret = process.env.LIVEKIT_API_SECRET?.trim();
   if (!url || !anon || !key || !secret) return Response.json({ error: 'not_configured' }, { status: 503 });
 
   const auth = req.headers.get('authorization') || '';

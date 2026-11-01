@@ -1,5 +1,7 @@
 'use client';
 
+import { uniq } from '@/lib/uniq';
+
 import { useCallback, useEffect, useState } from 'react';
 import { go, useApp } from '@/lib/app';
 import { timeAgo, useT } from '@/lib/i18n';
@@ -50,7 +52,7 @@ export default function Chats() {
   useEffect(() => {
     load();
     const ch = sb()
-      .channel('chats-list')
+      .channel(uniq('chats-list'))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => load())
       .subscribe();
     return () => {

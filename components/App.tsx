@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { uniq } from '@/lib/uniq';
+
+import { Component, useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { isConfigured, sb } from '@/lib/supabase';
 import { I18nProvider, useT } from '@/lib/i18n';
@@ -24,9 +26,36 @@ import Plus from './screens/Plus';
 export default function App() {
   return (
     <I18nProvider>
-      {isConfigured ? <Gate /> : <NotConfigured />}
+      <ErrorBoundary>{isConfigured ? <Gate /> : <NotConfigured />}</ErrorBoundary>
     </I18nProvider>
   );
+}
+
+class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    console.error('inner crashed:', error);
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="shell">
+        <div className="page" style={{ justifyContent: 'center', minHeight: '100dvh', textAlign: 'center' }}>
+          <h1 className="title" style={{ fontSize: 26 }}>inner</h1>
+          <p className="subtitle">Что-то пошло не так · Something went wrong</p>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: 'var(--text2)', background: 'var(--surface)', padding: 12, borderRadius: 12, textAlign: 'left' }}>
+            {String(this.state.error?.message || this.state.error)}
+          </pre>
+          <button className="btn primary" onClick={() => { location.hash = '#/feed'; location.reload(); }}>
+            ↻
+          </button>
+        </div>
+      </div>
+    );
+  }
 }
 
 function NotConfigured() {
@@ -82,6 +111,7 @@ function Gate() {
 function Shell() {
   const { route, userId, pendingIn, me, activeCall, setActiveCall, toast, refreshFriends } = useApp();
   const { t } = useT();
+  const closeCall = useCallback(() => setActiveCall(null), [setActiveCall]);
 
   // Приглашение по ссылке: после входа отправляем запрос в круг
   useEffect(() => {
@@ -112,13 +142,22 @@ function Shell() {
   // Входящие звонки в реальном времени
   useEffect(() => {
     const ch = sb()
-      .channel('calls-' + userId)
+      .channel(uniq('calls-' + userId))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'calls', filter: `callee_id=eq.${userId}` }, (payload) => {
         const call = payload.new as Call;
-        if (call.status === 'ringing' && Date.now() - new Date(call.created_at).getTime() < 60000) setActiveCall(call);
+        if (call.status === 'ringing') setActiveCall((cur) => cur || call);
       })
       .subscribe();
+    // Запасной опрос, если realtime не доставил событие
+    const poll = window.setInterval(async () => {
+      if (document.hidden) return;
+      const since = new Date(Date.now() - 40000).toISOString();
+      const { data } = await sb().from('calls').select('*').eq('callee_id', userId).eq('status', 'ringing').gte('created_at', since).order('created_at', { ascending: false }).limit(1);
+      const c = (data || [])[0] as Call | undefined;
+      if (c) setActiveCall((cur) => cur || c);
+    }, 4000);
     return () => {
+      window.clearInterval(poll);
       sb().removeChannel(ch);
     };
   }, [userId, setActiveCall]);
@@ -222,7 +261,7 @@ function Shell() {
         </div>
       )}
 
-      {activeCall && <CallScreen call={activeCall} onClose={() => setActiveCall(null)} />}
+      {activeCall && <CallScreen call={activeCall} onClose={closeCall} />}
     </div>
   );
 }

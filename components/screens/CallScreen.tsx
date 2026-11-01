@@ -1,5 +1,7 @@
 'use client';
 
+import { uniq } from '@/lib/uniq';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LocalVideoTrack,
@@ -38,6 +40,8 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
   const [mode, setMode] = useState<Mode>(dataSaver ? 'eco' : 'auto');
   const [facing, setFacing] = useState<'user' | 'environment'>('user');
   const [seconds, setSeconds] = useState(0);
+  const [detail, setDetail] = useState('');
+  const [needAudioTap, setNeedAudioTap] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
   const remoteVideoEl = useRef<HTMLVideoElement>(null);
@@ -60,10 +64,11 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
       closedRef.current = true;
       setPhase('ended');
       setNote(message || t('callEnded'));
-      roomRef.current?.disconnect();
+      const room = roomRef.current;
       roomRef.current = null;
+      room?.disconnect();
       await sb().from('calls').update({ status, ended_at: new Date().toISOString() }).eq('id', call.id);
-      window.setTimeout(onClose, 1200);
+      window.setTimeout(onClose, message ? 4000 : 1500);
     },
     [call.id, onClose, t]
   );
@@ -78,7 +83,10 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.session?.access_token || ''}` },
       body: JSON.stringify({ callId: call.id })
     });
-    if (!res.ok) return finish('ended', t('callsNotReady'));
+    if (!res.ok) {
+      setDetail(`token ${res.status}`);
+      return finish('ended', t('callsNotReady'));
+    }
     const { token } = await res.json();
 
     const eco = mode === 'eco';
@@ -88,7 +96,7 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
       dynacast: true,
       videoCaptureDefaults: { resolution: preset.resolution, facingMode: 'user' },
       audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      publishDefaults: { simulcast: true, videoCodec: 'vp9', videoEncoding: preset.encoding, dtx: true, red: true }
+      publishDefaults: { simulcast: true, videoEncoding: preset.encoding, dtx: true, red: true }
     });
     roomRef.current = room;
 
@@ -114,45 +122,72 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
       .on(RoomEvent.TrackUnmuted, (pub) => {
         if (pub.kind === Track.Kind.Video && pub.source === Track.Source.Camera) setRemoteVideo(true);
       })
+      .on(RoomEvent.AudioPlaybackStatusChanged, () => setNeedAudioTap(!room.canPlaybackAudio))
       .on(RoomEvent.ParticipantDisconnected, () => finish('ended'))
-      .on(RoomEvent.Disconnected, () => finish('ended'));
+      .on(RoomEvent.Disconnected, () => {
+        if (roomRef.current === room) finish('ended');
+      });
 
     try {
       await room.connect(LK_URL, token);
+    } catch (e) {
+      setDetail('connect: ' + (e instanceof Error ? e.message : String(e)));
+      roomRef.current = null;
+      return finish('ended', t('error'));
+    }
+    setPhase('live');
+    room.startAudio().catch(() => setNeedAudioTap(true));
+    try {
       await room.localParticipant.setMicrophoneEnabled(true);
-      if (isVideo) {
+    } catch (e) {
+      setMicOn(false);
+      setDetail(t('permDenied'));
+    }
+    if (isVideo) {
+      try {
         await room.localParticipant.setCameraEnabled(true);
         const cam = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
         if (cam && localVideoEl.current) cam.attach(localVideoEl.current);
+      } catch {
+        setCamOn(false);
+        setDetail(t('permDenied'));
       }
-      setPhase('live');
-    } catch {
-      finish('ended', t('permDenied'));
     }
   }, [call.id, finish, isVideo, mode, t]);
 
-  // Следим за статусом звонка (ответили, отклонили, положили трубку)
+  // Следим за статусом звонка (ответили, отклонили, положили трубку): realtime + запасной опрос
+  const onStatus = useRef<(c: Call) => void>(() => {});
+  onStatus.current = (c: Call) => {
+    if (closedRef.current) return;
+    if (c.status === 'accepted' && isCaller && !roomRef.current) join();
+    if (c.status === 'declined') finish('declined', t('declinedCall'));
+    if (['ended', 'missed', 'cancelled'].includes(c.status)) finish(c.status);
+  };
   useEffect(() => {
     const ch = sb()
-      .channel('call-' + call.id)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${call.id}` }, (payload) => {
-        const c = payload.new as Call;
-        if (c.status === 'accepted' && isCaller) join();
-        if (c.status === 'declined') finish('declined', t('declinedCall'));
-        if (['ended', 'missed', 'cancelled'].includes(c.status)) finish(c.status);
-      })
+      .channel(uniq('call-' + call.id))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${call.id}` }, (payload) => onStatus.current(payload.new as Call))
       .subscribe();
+    const poll = window.setInterval(async () => {
+      if (closedRef.current) return;
+      const { data } = await sb().from('calls').select('*').eq('id', call.id).maybeSingle();
+      if (data) onStatus.current(data as Call);
+    }, 2500);
     return () => {
+      window.clearInterval(poll);
       sb().removeChannel(ch);
     };
-  }, [call.id, isCaller, join, finish, t]);
+  }, [call.id]);
 
   // Нет ответа 45 секунд — пропущенный
   useEffect(() => {
     if (phase !== 'ringing') return;
-    const id = window.setTimeout(() => finish(isCaller ? 'missed' : 'missed', t('noAnswer')), 45000);
+    const id = window.setTimeout(() => {
+      if (!roomRef.current) finish('missed', t('noAnswer'));
+    }, 45000);
     return () => window.clearTimeout(id);
-  }, [phase, isCaller, finish, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // Таймер разговора
   useEffect(() => {
@@ -275,6 +310,11 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
             <p className="muted" style={{ margin: '6px 0 0', fontSize: 17, fontVariantNumeric: 'tabular-nums' }}>
               {(isVideo ? t('video') : t('voice')) + ' · ' + status}
             </p>
+            {detail && (
+              <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                {detail}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -300,6 +340,16 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
         <div className="call-self" style={{ display: camOn && phase !== 'ringing' ? 'block' : 'none' }}>
           <video ref={localVideoEl} autoPlay playsInline muted />
         </div>
+      )}
+
+      {needAudioTap && phase === 'live' && (
+        <button
+          className="btn primary"
+          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(env(safe-area-inset-bottom) + 124px)' }}
+          onClick={() => roomRef.current?.startAudio().then(() => setNeedAudioTap(false))}
+        >
+          {t('enableSound')}
+        </button>
       )}
 
       <div className="call-controls glass" style={{ color: 'var(--text)' }}>

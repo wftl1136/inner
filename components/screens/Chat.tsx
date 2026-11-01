@@ -1,5 +1,7 @@
 'use client';
 
+import { uniq } from '@/lib/uniq';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { go, useApp } from '@/lib/app';
 import { useT } from '@/lib/i18n';
@@ -34,7 +36,7 @@ export default function ChatScreen({ conversationId }: { conversationId: string 
       markRead();
     })();
     const ch = sb()
-      .channel('chat-' + conversationId)
+      .channel(uniq('chat-' + conversationId))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
         const m = payload.new as Message;
         setMsgs((list) => (list.some((x) => x.id === m.id) ? list : [...list, m]));
@@ -105,7 +107,8 @@ export default function ChatScreen({ conversationId }: { conversationId: string 
           const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString();
           const out = m.sender_id === userId;
           const post = m.shared_post_id ? shared[m.shared_post_id] : undefined;
-          const content = post?.repost_of ? post.original : post;
+          const rawContent = post?.repost_of ? post.original : post;
+          const content = rawContent && rawContent.author ? rawContent : null;
           return (
             <div key={m.id} style={{ display: 'contents' }}>
               {newDay && <span className="sys" style={{ margin: '8px 0' }}>{dayFmt.format(new Date(m.created_at))}</span>}

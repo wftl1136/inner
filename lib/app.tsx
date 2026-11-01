@@ -1,5 +1,7 @@
 'use client';
 
+import { uniq } from '@/lib/uniq';
+
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { sb } from './supabase';
 import { PROFILE_FIELDS, type Call, type MiniProfile, type Profile } from './types';
@@ -30,7 +32,7 @@ type AppCtx = {
   dataSaver: boolean;
   setDataSaver: (v: boolean) => void;
   activeCall: Call | null;
-  setActiveCall: (c: Call | null) => void;
+  setActiveCall: React.Dispatch<React.SetStateAction<Call | null>>;
   startCall: (calleeId: string, kind: 'voice' | 'video') => Promise<void>;
   profileCache: Record<string, MiniProfile>;
   rememberProfiles: (ps: MiniProfile[]) => void;
@@ -98,7 +100,7 @@ export function AppProvider({ userId, children }: { userId: string; children: Re
   // Живые изменения круга: новые запросы и принятые приглашения
   useEffect(() => {
     const ch = sb()
-      .channel('fr-' + userId)
+      .channel(uniq('fr-' + userId))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => refreshFriends())
       .subscribe();
     return () => {

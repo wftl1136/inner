@@ -22,7 +22,8 @@ export function PostCard({ post, liked, onChanged }: { post: Post; liked: boolea
   const [menu, setMenu] = useState(false);
 
   const isRepost = Boolean(post.repost_of);
-  const content = isRepost ? post.original : post;
+  const raw = isRepost ? post.original : post;
+  const content = raw && raw.author ? raw : null;
   const mine = post.author_id === userId;
 
   async function toggleLike() {
