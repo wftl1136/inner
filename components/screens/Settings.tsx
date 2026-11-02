@@ -38,28 +38,30 @@ export default function Settings() {
   return (
     <div className="page">
       <div className="topbar">
-        <button className="icon-btn glass" aria-label={t('back')} onClick={() => history.back()}>
-          <Icon name="back" size={20} stroke={2.2} />
+        <button className="icon-btn filled" aria-label={t('back')} onClick={() => history.back()}>
+          <Icon name="back" size={22} />
         </button>
       </div>
       <h1 className="title">{t('settings')}</h1>
 
-      <button className="card row" style={{ borderRadius: 22, flexDirection: 'row', textAlign: 'left' }} onClick={() => go('me')}>
+      <button className="card row" style={{ flexDirection: 'row', textAlign: 'left' }} onClick={() => go('me')}>
         <Avatar p={me} size={52} />
-        <span className="grow" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <strong style={{ fontSize: 17, fontWeight: 600 }}>{me?.display_name}</strong>
-          <span className="muted" style={{ fontSize: 14 }}>
+        <span className="grow" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 17, fontWeight: 500 }}>{me?.display_name}</span>
+          <span className="meta">
             @{me?.username}
             {me?.plus ? ' · inner+' : ''}
           </span>
         </span>
-        <Icon name="chevron" size={18} />
+        <span style={{ color: 'var(--text3)', display: 'flex' }}>
+          <Icon name="chevron" size={18} />
+        </span>
       </button>
 
       <div className="group">
         <div className="cell">
-          <span className="tile accent">
-            <Icon name="lock" size={17} />
+          <span className="cell-icon">
+            <Icon name="lock" />
           </span>
           <span className="cell-body">
             <span>{t('privacy')}</span>
@@ -69,59 +71,63 @@ export default function Settings() {
           </span>
         </div>
         <button className="cell" onClick={() => go('me')}>
-          <span className="tile accent">
-            <Icon name="users" size={17} />
+          <span className="cell-icon">
+            <Icon name="users" />
           </span>
           <span className="cell-body">
             <span>{t('myCircle')}</span>
-            <span className="row muted" style={{ gap: 6, fontSize: 15 }}>
-              {friends.length} {t('of')} {max}
-              <Icon name="chevron" size={15} />
+            <span className="row" style={{ gap: 8, color: 'var(--text3)' }}>
+              <span className="meta">
+                ({friends.length}/{max})
+              </span>
+              <Icon name="chevron" size={16} />
             </span>
           </span>
         </button>
         <button className="cell" onClick={() => go('plus')}>
-          <span className="tile accent">
-            <Icon name="star" size={17} />
+          <span className="cell-icon">
+            <Icon name="star" />
           </span>
           <span className="cell-body">
             <span>{t('plus')}</span>
-            <Icon name="chevron" size={15} />
+            <span style={{ color: 'var(--text3)', display: 'flex' }}>
+              <Icon name="chevron" size={16} />
+            </span>
           </span>
         </button>
       </div>
 
       <div className="group">
         <button className="cell" aria-expanded={langOpen} onClick={() => setLangOpen(!langOpen)}>
-          <span className="tile">
-            <Icon name="globe" size={17} />
+          <span className="cell-icon">
+            <Icon name="globe" />
           </span>
           <span className="cell-body">
             <span>{t('language')}</span>
-            <span className="row muted" style={{ gap: 6, fontSize: 15 }}>
+            <span className="row muted" style={{ gap: 8, fontSize: 15 }}>
               {LANGS.find((l) => l.id === lang)?.label}
-              <span style={{ display: 'flex', transform: langOpen ? 'rotate(90deg)' : 'none' }}>
-                <Icon name="chevron" size={15} />
+              <span style={{ display: 'flex', color: 'var(--text3)', transform: langOpen ? 'rotate(90deg)' : 'none', transition: 'transform var(--t-fast) var(--ease)' }}>
+                <Icon name="chevron" size={16} />
               </span>
             </span>
           </span>
         </button>
         {langOpen &&
           LANGS.map((l) => (
-            <button key={l.id} className="cell" style={{ paddingLeft: 56 }} aria-pressed={l.id === lang} onClick={() => setLang(l.id as Lang)}>
-              <span className="cell-body" style={{ minHeight: 46 }}>
+            <button key={l.id} className="cell" style={{ paddingLeft: 52 }} aria-pressed={l.id === lang} onClick={() => setLang(l.id as Lang)}>
+              <span className="cell-body" style={{ minHeight: 48 }}>
                 <span>{l.label}</span>
                 {l.id === lang && (
-                  <span style={{ color: 'var(--accent)', display: 'flex' }}>
-                    <Icon name="check" size={18} stroke={2.6} />
+                  <span style={{ display: 'flex' }}>
+                    <Icon name="check" size={18} />
                   </span>
                 )}
               </span>
             </button>
           ))}
         <div className="cell">
-          <span className="tile">
-            <Icon name="wifi" size={17} />
+          <span className="cell-icon">
+            <Icon name="wifi" />
           </span>
           <span className="cell-body">
             <span style={{ display: 'flex', flexDirection: 'column' }}>
@@ -134,10 +140,10 @@ export default function Settings() {
           </span>
         </div>
         <div className="cell" style={{ alignItems: 'flex-start' }}>
-          <span className="tile" style={{ marginTop: 12 }}>
-            <Icon name="moon" size={17} />
+          <span className="cell-icon" style={{ marginTop: 14 }}>
+            <Icon name="moon" />
           </span>
-          <span className="cell-body" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10, padding: '12px 14px 12px 0' }}>
+          <span className="cell-body" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12, padding: '14px 16px 16px 0' }}>
             <span>{t('appearance')}</span>
             <span className="segmented">
               {(['system', 'light', 'dark'] as Theme[]).map((v) => (
@@ -150,12 +156,12 @@ export default function Settings() {
         </div>
       </div>
 
-      <p className="muted" style={{ margin: '0 4px', fontSize: 13, lineHeight: 1.45 }}>
+      <p className="muted" style={{ margin: '0 4px', fontSize: 13, lineHeight: 1.5 }}>
         {t('installHint')}
       </p>
 
       <div className="group">
-        <button className="cell" style={{ justifyContent: 'center', color: 'var(--danger)', paddingLeft: 0, minHeight: 52, fontWeight: 500 }} onClick={() => sb().auth.signOut()}>
+        <button className="cell" style={{ justifyContent: 'center', color: 'var(--danger)', paddingLeft: 0, fontWeight: 500 }} onClick={() => sb().auth.signOut()}>
           {t('logout')}
         </button>
       </div>

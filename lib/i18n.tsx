@@ -13,8 +13,8 @@ export const LANGS = [
 export type Lang = (typeof LANGS)[number]['id'];
 
 const ru = {
-  appTagline: 'Только твои люди.',
-  appSub: 'Лента без алгоритмов и рекламы. До 150 близких, звонки и видео в отличном качестве.',
+  appTagline: 'Только твои люди',
+  appSub: 'Лента без алгоритмов и рекламы. До 150 близких, звонки и видео в HD.',
   email: 'Почта',
   password: 'Пароль',
   passwordHint: 'Минимум 8 символов',
@@ -156,6 +156,7 @@ const ru = {
   setupText: 'Приложению нужны ключи Supabase и LiveKit. Добавь их в настройки проекта на Vercel и перезапусти деплой.',
   back: 'Назад',
   more: 'Ещё',
+  loadMore: 'Показать ещё',
   close: 'Закрыть'
 };
 
@@ -163,8 +164,8 @@ export type Key = keyof typeof ru;
 type Dict = Record<Key, string>;
 
 const uk: Dict = {
-  appTagline: 'Тільки твої люди.',
-  appSub: 'Стрічка без алгоритмів і реклами. До 150 близьких, дзвінки й відео в чудовій якості.',
+  appTagline: 'Тільки твої люди',
+  appSub: 'Стрічка без алгоритмів і реклами. До 150 близьких, дзвінки й відео в HD.',
   email: 'Пошта',
   password: 'Пароль',
   passwordHint: 'Щонайменше 8 символів',
@@ -306,12 +307,13 @@ const uk: Dict = {
   setupText: 'Застосунку потрібні ключі Supabase і LiveKit. Додай їх у налаштування проєкту на Vercel і перезапусти деплой.',
   back: 'Назад',
   more: 'Ще',
+  loadMore: 'Показати ще',
   close: 'Закрити'
 };
 
 const en: Dict = {
-  appTagline: 'Only your people.',
-  appSub: 'A feed with no algorithms and no ads. Up to 150 close people, crystal-clear calls and video.',
+  appTagline: 'Only your people',
+  appSub: 'A feed with no algorithms and no ads. Up to 150 close people, calls and video in HD.',
   email: 'Email',
   password: 'Password',
   passwordHint: 'At least 8 characters',
@@ -453,12 +455,13 @@ const en: Dict = {
   setupText: 'The app needs Supabase and LiveKit keys. Add them to your Vercel project settings and redeploy.',
   back: 'Back',
   more: 'More',
+  loadMore: 'Show more',
   close: 'Close'
 };
 
 const lv: Dict = {
-  appTagline: 'Tikai tavi cilvēki.',
-  appSub: 'Plūsma bez algoritmiem un reklāmām. Līdz 150 tuviem cilvēkiem, zvani un video izcilā kvalitātē.',
+  appTagline: 'Tikai tavi cilvēki',
+  appSub: 'Plūsma bez algoritmiem un reklāmām. Līdz 150 tuviem cilvēkiem, zvani un video HD kvalitātē.',
   email: 'E-pasts',
   password: 'Parole',
   passwordHint: 'Vismaz 8 rakstzīmes',
@@ -600,12 +603,13 @@ const lv: Dict = {
   setupText: 'Lietotnei vajag Supabase un LiveKit atslēgas. Pievieno tās Vercel projekta iestatījumos un palaid izvietošanu no jauna.',
   back: 'Atpakaļ',
   more: 'Vairāk',
+  loadMore: 'Rādīt vairāk',
   close: 'Aizvērt'
 };
 
 const bg: Dict = {
-  appTagline: 'Само твоите хора.',
-  appSub: 'Лента без алгоритми и реклами. До 150 близки хора, обаждания и видео в отлично качество.',
+  appTagline: 'Само твоите хора',
+  appSub: 'Лента без алгоритми и реклами. До 150 близки хора, обаждания и видео в HD.',
   email: 'Имейл',
   password: 'Парола',
   passwordHint: 'Поне 8 символа',
@@ -747,6 +751,7 @@ const bg: Dict = {
   setupText: 'Приложението има нужда от ключове за Supabase и LiveKit. Добави ги в настройките на проекта във Vercel и пусни деплоя отново.',
   back: 'Назад',
   more: 'Още',
+  loadMore: 'Покажи още',
   close: 'Затвори'
 };
 

@@ -66,29 +66,31 @@ export default function Notifications() {
   return (
     <div className="page">
       <div className="topbar">
-        <button className="icon-btn glass" aria-label={t('back')} onClick={() => history.back()}>
-          <Icon name="back" size={20} stroke={2.2} />
+        <button className="icon-btn filled" aria-label={t('back')} onClick={() => history.back()}>
+          <Icon name="back" size={22} />
         </button>
       </div>
       <h1 className="title">{t('notifications')}</h1>
 
       {reqs.length > 0 && (
-        <>
-          <h2 className="h2">{t('requests')}</h2>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <h2 className="h2">
+            {t('requests')} <span className="meta">({reqs.length})</span>
+          </h2>
           {reqs.map((r) => (
-            <div key={r.id} className="card" style={{ borderRadius: 22 }}>
-              <button className="row" style={{ gap: 12, textAlign: 'left' }} onClick={() => go('profile/' + r.from.username)}>
+            <div key={r.id} className="card">
+              <button className="row" style={{ textAlign: 'left' }} onClick={() => go('profile/' + r.from.username)}>
                 <Avatar p={r.from} size={48} />
-                <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 15, lineHeight: 1.35 }}>
-                    <strong style={{ fontWeight: 600 }}>{r.from.display_name}</strong> {t('wantsAdd')}
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 15, lineHeight: 1.4 }}>
+                    <span style={{ fontWeight: 500 }}>{r.from.display_name}</span> {t('wantsAdd')}
                   </span>
-                  <span className="muted" style={{ fontSize: 13 }}>
+                  <span className="meta">
                     @{r.from.username} · {timeAgo(r.created_at, t)}
                   </span>
                 </span>
               </button>
-              <div className="row">
+              <div className="row" style={{ gap: 8 }}>
                 <button className="btn sm primary grow" onClick={() => answer(r.id, true)}>
                   {t('accept')}
                 </button>
@@ -98,40 +100,42 @@ export default function Notifications() {
               </div>
             </div>
           ))}
-        </>
+        </section>
       )}
 
       {acts && acts.length === 0 && reqs.length === 0 && <p className="empty">{t('nothingNew')}</p>}
       {acts && acts.length > 0 && (
-        <div className="group">
+        <div className="list">
           {acts.map((a) => (
             <button key={a.key} className="cell" onClick={() => go('profile/' + a.who.username)}>
-              <span style={{ position: 'relative' }}>
-                <Avatar p={a.who} size={42} />
+              <span style={{ position: 'relative', display: 'flex' }}>
+                <Avatar p={a.who} size={44} />
                 <span
+                  className="center"
                   style={{
                     position: 'absolute',
-                    right: -3,
-                    bottom: -3,
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
-                    border: '2px solid var(--surface)',
-                    background: a.kind === 'like' ? 'var(--like)' : 'var(--accent)'
+                    right: -4,
+                    bottom: -4,
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    boxShadow: '0 0 0 2px var(--bg)',
+                    background: a.kind === 'like' ? 'var(--like)' : 'var(--primary)',
+                    color: a.kind === 'like' ? '#fff' : 'var(--on-primary)'
                   }}
-                />
-              </span>
-              <span className="cell-body" style={{ paddingTop: 12, paddingBottom: 12 }}>
-                <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                  <span style={{ fontSize: 15, lineHeight: 1.35 }}>
-                    <strong style={{ fontWeight: 600 }}>{a.who.display_name}</strong>{' '}
-                    {a.kind === 'like' ? t('liked') : t('commented', { text: a.text || '' })}
-                  </span>
-                  <span className="muted" style={{ fontSize: 13 }}>
-                    {timeAgo(a.at, t)}
-                  </span>
+                >
+                  <Icon name={a.kind === 'like' ? 'heart' : 'chat'} size={12} filled={a.kind === 'like'} />
                 </span>
-                {a.image && <img src={mediaUrl(a.image) || ''} alt="" style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />}
+              </span>
+              <span className="cell-body" style={{ minHeight: 68 }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: 15, lineHeight: 1.4 }}>
+                    <span style={{ fontWeight: 500 }}>{a.who.display_name}</span>{' '}
+                    <span className="muted">{a.kind === 'like' ? t('liked') : t('commented', { text: a.text || '' })}</span>
+                  </span>
+                  <span className="meta">{timeAgo(a.at, t)}</span>
+                </span>
+                {a.image && <img src={mediaUrl(a.image) || ''} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
               </span>
             </button>
           ))}

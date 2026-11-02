@@ -77,7 +77,7 @@ export default function StoryViewer({ authorId }: { authorId: string }) {
   }
 
   return (
-    <div className="overlay dark-media" style={{ color: '#f5f5f7' }}>
+    <div className="overlay dark-media">
       <img src={mediaUrl(s.image_path) || ''} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
       <button aria-label={t('back')} onClick={() => i > 0 && setI(i - 1)} style={{ position: 'absolute', left: 0, top: 120, bottom: 120, width: '35%' }} />
       <button aria-label={t('more')} onClick={() => (i < stories.length - 1 ? setI(i + 1) : go('feed'))} style={{ position: 'absolute', right: 0, top: 120, bottom: 120, width: '65%' }} />
@@ -91,21 +91,21 @@ export default function StoryViewer({ authorId }: { authorId: string }) {
           ))}
         </div>
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <button className="row glass" onClick={() => go('profile/' + author.username)} style={{ height: 44, padding: '0 16px 0 5px', borderRadius: 22, color: 'var(--text)' }}>
-            <Avatar p={author} size={34} />
-            <span style={{ fontWeight: 600, fontSize: 15 }}>{author.display_name}</span>
-            <span className="muted" style={{ fontSize: 13 }}>
+          <button className="row media-chip" onClick={() => go('profile/' + author.username)} style={{ height: 44, padding: '0 16px 0 4px', borderRadius: 22, gap: 8 }}>
+            <Avatar p={author} size={36} />
+            <span className="name">{author.display_name}</span>
+            <span className="meta" style={{ color: 'rgba(242, 242, 242, 0.7)' }}>
               {timeAgo(s.created_at, t)}
             </span>
           </button>
           <div className="row" style={{ gap: 8 }}>
             {mine && (
-              <button className="icon-btn glass" aria-label={t('delete')} onClick={removeStory}>
-                <Icon name="close" size={16} stroke={2.4} />
+              <button className="icon-btn media-chip" aria-label={t('delete')} onClick={removeStory}>
+                <Icon name="close" size={18} />
               </button>
             )}
-            <button className="icon-btn glass" aria-label={t('close')} onClick={() => go('feed')}>
-              <Icon name="down" size={20} stroke={2.2} />
+            <button className="icon-btn media-chip" aria-label={t('close')} onClick={() => go('feed')}>
+              <Icon name="down" size={22} />
             </button>
           </div>
         </div>
@@ -119,16 +119,16 @@ export default function StoryViewer({ authorId }: { authorId: string }) {
           </label>
           <input
             id="story-reply"
-            className="glass"
+            className="media-chip"
             value={reply}
             onFocus={() => setPaused(true)}
             onBlur={() => !reply && setPaused(false)}
             onChange={(e) => setReply(e.target.value)}
             placeholder={t('replyTo', { name: author.display_name })}
-            style={{ flex: 1, minWidth: 0, height: 50, borderRadius: 25, padding: '0 20px', fontSize: 16, color: 'var(--text)' }}
+            style={{ flex: 1, minWidth: 0, height: 48, borderRadius: 24, padding: '0 20px', fontSize: 16 }}
           />
-          <button type="submit" className="icon-btn glass" aria-label={t('send')} style={{ width: 50, height: 50, borderRadius: 25 }}>
-            <Icon name="send" size={20} />
+          <button type="submit" className="icon-btn lg" aria-label={t('send')} style={{ background: '#f2f2f2', color: '#050505' }}>
+            <Icon name="arrowUp" />
           </button>
         </form>
       )}

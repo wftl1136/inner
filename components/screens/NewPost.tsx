@@ -41,27 +41,27 @@ export default function NewPost() {
   return (
     <div className="page" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
       <div className="topbar">
-        <button className="btn sm glass" style={{ height: 44, borderRadius: 22 }} onClick={() => history.back()}>
+        <button className="btn sm fill" onClick={() => history.back()}>
           {t('cancel')}
         </button>
-        <strong style={{ fontSize: 17 }}>{t('newPost')}</strong>
-        <button className="btn sm primary" style={{ height: 44, borderRadius: 22 }} disabled={busy || (!body.trim() && !file)} onClick={publish}>
+        <span style={{ fontSize: 17, fontWeight: 500 }}>{t('newPost')}</span>
+        <button className="btn sm primary" disabled={busy || (!body.trim() && !file)} onClick={publish}>
           {busy ? t('publishing') : t('publish')}
         </button>
       </div>
 
-      <div className="row" style={{ gap: 12, padding: '0 4px' }}>
+      <div className="row">
         <Avatar p={me} size={44} />
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <strong style={{ fontSize: 15 }}>{me?.display_name}</strong>
-          <span className="row muted" style={{ gap: 4, fontSize: 13 }}>
-            <Icon name="lock" size={11} stroke={2.5} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span className="name">{me?.display_name}</span>
+          <span className="row meta" style={{ gap: 4 }}>
+            <Icon name="lock" size={12} />
             {t('privacyValue')}
           </span>
         </div>
       </div>
 
-      <label style={{ padding: '0 4px' }}>
+      <label>
         <span className="sr-only">{t('whatsNew')}</span>
         <textarea className="textarea" placeholder={t('whatsNew')} value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} autoFocus rows={4} />
       </label>
@@ -70,22 +70,22 @@ export default function NewPost() {
         <div className="media" style={{ position: 'relative', maxHeight: 420 }}>
           <img src={preview} alt="" />
           <button
-            className="icon-btn glass"
+            className="icon-btn media-chip"
             aria-label={t('delete')}
             onClick={() => {
               setFile(null);
               setPreview(null);
             }}
-            style={{ position: 'absolute', top: 10, right: 10, width: 34, height: 34 }}
+            style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32 }}
           >
-            <Icon name="close" size={14} stroke={2.6} />
+            <Icon name="close" size={16} />
           </button>
         </div>
       ) : (
         <button
           onClick={() => fileRef.current?.click()}
           className="center"
-          style={{ height: 140, borderRadius: 20, border: '1.5px dashed var(--text2)', color: 'var(--text2)', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 500 }}
+          style={{ height: 144, borderRadius: 16, border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text2)', flexDirection: 'column', gap: 8, fontSize: 14, fontWeight: 500 }}
         >
           <Icon name="image" size={24} />
           {t('addPhoto')}

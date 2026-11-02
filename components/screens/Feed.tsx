@@ -8,13 +8,13 @@ import { mediaUrl, sb, uploadImage } from '@/lib/supabase';
 import { seenStories, shareInvite } from '@/lib/invite';
 import type { MiniProfile, Post, Story } from '@/lib/types';
 import { PostCard } from '../PostCard';
-import { Avatar, Icon } from '../ui';
+import { Avatar, Badge, Icon } from '../ui';
 
 type StoryGroup = { author: MiniProfile; stories: Story[]; fresh: boolean };
 
 export default function Feed() {
   const { t } = useT();
-  const { me, userId, friends, pendingIn, toast } = useApp();
+  const { me, userId, friends, toast, badges } = useApp();
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [groups, setGroups] = useState<StoryGroup[]>([]);
@@ -83,59 +83,65 @@ export default function Feed() {
   return (
     <div className="page flush">
       <header className="topbar pad">
-        <h1 className="title">{t('tabFeed')}</h1>
-        <div className="capsule glass">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <h1 className="title">{t('tabFeed')}</h1>
+          <span className="meta">
+            {t('circle')} ({friends.length}/{max})
+          </span>
+        </div>
+        <div className="actions">
           <button className="icon-btn" aria-label={t('findPeople')} onClick={() => go('search')}>
-            <Icon name="search" size={20} />
+            <Icon name="search" />
           </button>
-          <button className="icon-btn" aria-label={t('notifications')} onClick={() => go('notifications')} style={{ position: 'relative' }}>
-            <Icon name="bell" size={20} />
-            {pendingIn > 0 && <span style={{ position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, background: 'var(--accent)' }} />}
+          <button
+            className="icon-btn"
+            aria-label={badges.notifications ? `${t('notifications')}, ${badges.notifications}` : t('notifications')}
+            onClick={() => go('notifications')}
+          >
+            <Icon name="bell" />
+            <Badge n={badges.notifications} className="on-icon" />
           </button>
         </div>
       </header>
-      <p className="subtitle pad" style={{ marginTop: -8 }}>
-        {t('circleStat', { n: friends.length, max })}
-      </p>
 
       <nav className="stories" aria-label="Stories">
-        <div className="story-card">
+        <div className="story-card fresh">
           <button
             className="story-thumb center"
             style={{ background: myGroup ? undefined : 'var(--fill)' }}
-            aria-label={t('newStory')}
+            aria-label={myGroup ? t('you') : t('newStory')}
             onClick={() => (myGroup ? go('story/' + userId) : fileRef.current?.click())}
           >
             {myGroup ? (
               <img src={mediaUrl(myGroup.stories[myGroup.stories.length - 1].image_path) || ''} alt="" />
             ) : (
-              <span className="center" style={{ width: 34, height: 34, borderRadius: 17, background: 'var(--accent)', color: 'var(--on-accent)' }}>
-                <Icon name="plus" size={16} stroke={2.6} />
+              <span className="center" style={{ width: 32, height: 32, borderRadius: 16, background: 'var(--primary)', color: 'var(--on-primary)' }}>
+                <Icon name="plus" size={16} />
               </span>
             )}
           </button>
-          <button className="muted" onClick={() => fileRef.current?.click()} style={{ fontSize: 12, fontWeight: 500 }}>
-            {uploading ? '…' : myGroup ? '+ ' + t('you') : t('you')}
+          <button onClick={() => fileRef.current?.click()} aria-label={t('newStory')} style={{ fontSize: 12, fontWeight: 500, color: 'var(--text2)' }}>
+            {uploading ? t('loading') : myGroup ? '+ ' + t('you') : t('you')}
           </button>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={addStory} />
         </div>
         {others.map((g) => (
-          <button key={g.author.id} className="story-card" onClick={() => go('story/' + g.author.id)} style={{ color: g.fresh ? 'var(--text)' : 'var(--text2)' }}>
+          <button key={g.author.id} className={'story-card' + (g.fresh ? ' fresh' : '')} onClick={() => go('story/' + g.author.id)}>
             <span className={'story-thumb' + (g.fresh ? ' fresh' : '')}>
               <img src={mediaUrl(g.stories[g.stories.length - 1].image_path) || ''} alt="" loading="lazy" />
-              <Avatar p={g.author} size={26} />
+              <Avatar p={g.author} size={24} />
             </span>
-            <span className="ellipsis" style={{ maxWidth: 80 }}>
+            <span className="ellipsis" style={{ maxWidth: 72 }}>
               {g.author.display_name.split(' ')[0]}
             </span>
           </button>
         ))}
       </nav>
 
-      <div className="pad" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 12px' }}>
+      <div className="pad" style={{ display: 'flex', flexDirection: 'column' }}>
         {posts === null && <p className="empty">{t('loading')}</p>}
         {posts?.length === 0 && (
-          <div className="card" style={{ alignItems: 'center', textAlign: 'center', padding: 28 }}>
+          <div className="card" style={{ alignItems: 'center', textAlign: 'center', padding: 24 }}>
             <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
               {t('feedEmpty')}
             </p>
@@ -148,8 +154,8 @@ export default function Feed() {
           <PostCard key={p.id} post={p} liked={liked.has(p.id)} onChanged={load} />
         ))}
         {posts && posts.length > 0 && more && (
-          <button className="btn fill" onClick={loadMore}>
-            {t('more')}
+          <button className="btn fill" style={{ marginTop: 16 }} onClick={loadMore}>
+            {t('loadMore')}
           </button>
         )}
       </div>

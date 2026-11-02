@@ -41,6 +41,8 @@ export default function Calls() {
     return `${kind} · ${dir}${dur}`;
   }
 
+  const missedCount = (rows || []).filter(isMissed).length;
+
   return (
     <div className="page">
       <header className="topbar">
@@ -48,23 +50,23 @@ export default function Calls() {
       </header>
 
       {friends.length > 0 && (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <h2 className="h2" style={{ margin: 0 }}>
-            {t('circle')}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <h2 className="h2">
+            {t('circle')} <span className="meta">({friends.length})</span>
           </h2>
-          <div className="stories" style={{ padding: '2px 4px 4px', gap: 14 }}>
+          <div className="stories" style={{ margin: '0 -16px', gap: 16 }}>
             {friends.map((f) => (
-              <div key={f.id} className="story-card" style={{ width: 72 }}>
-                <Avatar p={f} size={64} />
-                <span className="ellipsis" style={{ maxWidth: 72, fontSize: 13 }}>
+              <div key={f.id} className="story-card" style={{ width: 72, color: 'var(--text)' }}>
+                <Avatar p={f} size={56} />
+                <span className="ellipsis" style={{ maxWidth: 72 }}>
                   {f.display_name.split(' ')[0]}
                 </span>
                 <span className="row" style={{ gap: 4 }}>
-                  <button className="icon-btn" style={{ width: 32, height: 32, background: 'var(--fill)' }} aria-label={`${t('call')}: ${f.display_name}`} onClick={() => startCall(f.id, 'voice')}>
-                    <Icon name="phone" size={14} stroke={2.4} />
+                  <button className="icon-btn filled" style={{ width: 32, height: 32 }} aria-label={`${t('call')}: ${f.display_name}`} onClick={() => startCall(f.id, 'voice')}>
+                    <Icon name="phone" size={16} />
                   </button>
-                  <button className="icon-btn" style={{ width: 32, height: 32, background: 'var(--fill)' }} aria-label={`${t('videoCall')}: ${f.display_name}`} onClick={() => startCall(f.id, 'video')}>
-                    <Icon name="video" size={15} stroke={2.4} />
+                  <button className="icon-btn filled" style={{ width: 32, height: 32 }} aria-label={`${t('videoCall')}: ${f.display_name}`} onClick={() => startCall(f.id, 'video')}>
+                    <Icon name="video" size={16} />
                   </button>
                 </span>
               </div>
@@ -79,38 +81,35 @@ export default function Calls() {
         </button>
         <button aria-pressed={tab === 'missed'} onClick={() => setTab('missed')}>
           {t('missed')}
+          {missedCount > 0 && <span className="meta" style={{ color: 'inherit' }}>{missedCount}</span>}
         </button>
       </div>
 
       {rows === null && <p className="empty">{t('loading')}</p>}
       {rows && list.length === 0 && <p className="empty">{t('callsEmpty')}</p>}
       {list.length > 0 && (
-        <div className="group">
+        <div className="list">
           {list.map((c) => {
             const other = c.caller_id === userId ? c.callee : c.caller;
+            const missed = isMissed(c);
+            const dirIcon = missed ? 'phoneMissed' : c.caller_id === userId ? 'phoneOut' : 'phoneIn';
             return (
               <div key={c.id} className="cell">
                 <Avatar p={other} size={44} />
-                <span className="cell-body">
+                <span className="cell-body" style={{ minHeight: 68 }}>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <strong className="ellipsis" style={{ fontWeight: 600, color: isMissed(c) ? 'var(--danger)' : undefined }}>
+                    <span className="name ellipsis" style={{ color: missed ? 'var(--danger)' : undefined }}>
                       {other.display_name}
-                    </strong>
-                    <span className="muted ellipsis" style={{ fontSize: 13 }}>
+                    </span>
+                    <span className="row ellipsis" style={{ gap: 6, fontSize: 13, color: missed ? 'var(--danger)' : 'var(--text2)' }}>
+                      <Icon name={dirIcon} size={14} />
                       {meta(c)}
                     </span>
                   </span>
                   <span className="row" style={{ gap: 8, flexShrink: 0 }}>
-                    <span className="muted" style={{ fontSize: 13 }}>
-                      {timeAgo(c.created_at, t)}
-                    </span>
-                    <button
-                      className="icon-btn"
-                      style={{ width: 40, height: 40, background: 'var(--fill)' }}
-                      aria-label={c.kind === 'video' ? t('videoCall') : t('call')}
-                      onClick={() => startCall(other.id, c.kind)}
-                    >
-                      <Icon name={c.kind === 'video' ? 'video' : 'phone'} size={17} />
+                    <span className="meta">{timeAgo(c.created_at, t)}</span>
+                    <button className="icon-btn filled" aria-label={c.kind === 'video' ? t('videoCall') : t('call')} onClick={() => startCall(other.id, c.kind)}>
+                      <Icon name={c.kind === 'video' ? 'video' : 'phone'} size={18} />
                     </button>
                   </span>
                 </span>

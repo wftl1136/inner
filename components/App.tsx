@@ -8,7 +8,7 @@ import { isConfigured, sb } from '@/lib/supabase';
 import { I18nProvider, useT } from '@/lib/i18n';
 import { AppProvider, go, useApp } from '@/lib/app';
 import type { Call } from '@/lib/types';
-import { Icon, Avatar } from './ui';
+import { Icon, Avatar, Badge, Logo } from './ui';
 import AuthScreen from './screens/Auth';
 import Feed from './screens/Feed';
 import NewPost from './screens/NewPost';
@@ -44,13 +44,13 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Er
     return (
       <div className="shell">
         <div className="page" style={{ justifyContent: 'center', minHeight: '100dvh', textAlign: 'center' }}>
-          <h1 className="title" style={{ fontSize: 26 }}>inner</h1>
+          <Logo size={24} />
           <p className="subtitle">Что-то пошло не так · Something went wrong</p>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: 'var(--text2)', background: 'var(--surface)', padding: 12, borderRadius: 12, textAlign: 'left' }}>
+          <pre className="meta" style={{ whiteSpace: 'pre-wrap', background: 'var(--surface)', padding: 12, borderRadius: 12, textAlign: 'left', margin: 0 }}>
             {String(this.state.error?.message || this.state.error)}
           </pre>
           <button className="btn primary" onClick={() => { location.hash = '#/feed'; location.reload(); }}>
-            ↻
+            Обновить · Reload
           </button>
         </div>
       </div>
@@ -109,7 +109,7 @@ function Gate() {
 }
 
 function Shell() {
-  const { route, userId, pendingIn, me, activeCall, setActiveCall, toast, refreshFriends } = useApp();
+  const { route, userId, me, activeCall, setActiveCall, toast, refreshFriends, badges } = useApp();
   const { t } = useT();
   const closeCall = useCallback(() => setActiveCall(null), [setActiveCall]);
 
@@ -206,38 +206,42 @@ function Shell() {
   }
 
   const tabs = [
-    { id: 'feed', icon: 'home', label: t('tabFeed') },
-    { id: 'calls', icon: 'phone', label: t('tabCalls') },
-    { id: 'chats', icon: 'chat', label: t('tabChats') },
-    { id: 'me', icon: 'profile', label: t('tabProfile') }
+    { id: 'feed', icon: 'home', label: t('tabFeed'), badge: 0 },
+    { id: 'calls', icon: 'phone', label: t('tabCalls'), badge: badges.calls },
+    { id: 'chats', icon: 'chat', label: t('tabChats'), badge: badges.chats },
+    { id: 'me', icon: 'profile', label: t('tabProfile'), badge: 0 }
   ];
   const current = name === 'profile' && route.param === me?.username ? 'me' : name;
   const hideBars = ['new', 'story', 'chat'].includes(name);
+  const tabLabel = (tab: (typeof tabs)[number]) => (tab.badge ? `${tab.label}, ${tab.badge}` : tab.label);
 
   return (
     <div className="shell">
-      <aside className="sidebar glass" aria-label="inner">
-        <div className="row" style={{ padding: '4px 12px 16px' }}>
-          <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.8 }}>inner</span>
-          <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--accent)', marginTop: 6 }} />
+      <aside className="sidebar" aria-label="inner">
+        <div style={{ padding: '8px 12px 24px' }}>
+          <Logo size={22} />
         </div>
         {tabs.map((tab) => (
-          <button key={tab.id} className="side-link" aria-current={current === tab.id ? 'page' : undefined} onClick={() => go(tab.id)}>
-            {tab.icon === 'profile' ? <Avatar p={me} size={22} /> : <Icon name={tab.icon} size={20} />}
-            {tab.label}
+          <button key={tab.id} className="side-link" aria-current={current === tab.id ? 'page' : undefined} aria-label={tabLabel(tab)} onClick={() => go(tab.id)}>
+            {tab.icon === 'profile' ? <Avatar p={me} size={20} /> : <Icon name={tab.icon} />}
+            <span className="grow">{tab.label}</span>
+            <Badge n={tab.badge} />
           </button>
         ))}
         <button className="side-link" aria-current={current === 'notifications' ? 'page' : undefined} onClick={() => go('notifications')}>
-          <Icon name="bell" size={20} />
-          {t('notifications')}
-          {pendingIn > 0 && <span className="badge" style={{ marginLeft: 'auto' }}>{pendingIn}</span>}
+          <Icon name="bell" />
+          <span className="grow">{t('notifications')}</span>
+          <Badge n={badges.notifications} />
         </button>
         <button className="side-link" aria-current={current === 'settings' ? 'page' : undefined} onClick={() => go('settings')}>
-          <Icon name="menu" size={20} />
+          <Icon name="settings" />
           {t('settings')}
         </button>
-        <button className="btn primary" style={{ marginTop: 14 }} onClick={() => go('new')}>
+        <button className="btn primary arrow" style={{ marginTop: 16 }} onClick={() => go('new')}>
           {t('newPost')}
+          <span className="btn-arrow">
+            <Icon name="plus" size={16} />
+          </span>
         </button>
       </aside>
 
@@ -248,14 +252,17 @@ function Shell() {
           <div className="tabbar-inner">
             <nav className="tabbar glass" aria-label="Menu">
               {tabs.map((tab) => (
-                <button key={tab.id} className="tab" aria-current={current === tab.id ? 'page' : undefined} onClick={() => go(tab.id)} aria-label={tab.label}>
-                  {tab.icon === 'profile' ? <Avatar p={me} size={23} /> : <Icon name={tab.icon} size={22} />}
+                <button key={tab.id} className="tab" aria-current={current === tab.id ? 'page' : undefined} onClick={() => go(tab.id)} aria-label={tabLabel(tab)}>
+                  <span className="tab-icon">
+                    {tab.icon === 'profile' ? <Avatar p={me} size={22} /> : <Icon name={tab.icon} size={22} />}
+                    <Badge n={tab.badge} className="on-icon" />
+                  </span>
                   {tab.label}
                 </button>
               ))}
             </nav>
-            <button className="fab glass" aria-label={t('newPost')} onClick={() => go('new')}>
-              <Icon name="plus" size={24} stroke={2.2} />
+            <button className="fab" aria-label={t('newPost')} onClick={() => go('new')}>
+              <Icon name="plus" size={24} />
             </button>
           </div>
         </div>

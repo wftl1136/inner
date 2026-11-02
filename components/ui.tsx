@@ -146,10 +146,53 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="m16 17 5-5-5-5" />
       <path d="M21 12H9" />
     </>
+  ),
+  settings: (
+    <>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  arrowUp: (
+    <>
+      <path d="m5 12 7-7 7 7" />
+      <path d="M12 19V5" />
+    </>
+  ),
+  arrowRight: (
+    <>
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </>
+  ),
+  phoneMissed: (
+    <>
+      <path d="m16 2 6 6" />
+      <path d="m22 2-6 6" />
+      <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
+    </>
+  ),
+  phoneIn: (
+    <>
+      <path d="M16 2v6h6" />
+      <path d="m22 2-6 6" />
+      <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
+    </>
+  ),
+  phoneOut: (
+    <>
+      <path d="M16 8V2h6" />
+      <path d="m16 8 6-6" />
+      <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
+    </>
+  ),
+  hangup: (
+    <path d="M10.1 13.9a14 14 0 0 0 3.732 2.668 1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2 18 18 0 0 1-12.728-5.272M22 2 2 22M4.76 13.582A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 .244.473" />
   )
 };
 
-export function Icon({ name, size = 22, stroke = 2, filled = false }: { name: keyof typeof PATHS | string; size?: number; stroke?: number; filled?: boolean }) {
+// Одна линейка иконок: 20 px, линия 1.75 — размер и толщину не переопределяем по месту
+export function Icon({ name, size = 20, filled = false }: { name: keyof typeof PATHS | string; size?: number; filled?: boolean }) {
   return (
     <svg
       width={size}
@@ -157,7 +200,7 @@ export function Icon({ name, size = 22, stroke = 2, filled = false }: { name: ke
       viewBox="0 0 24 24"
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
-      strokeWidth={stroke}
+      strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -167,26 +210,39 @@ export function Icon({ name, size = 22, stroke = 2, filled = false }: { name: ke
   );
 }
 
-const TONES = ['#A9B7C6', '#C4A9A9', '#B3BFA8', '#C9B8A6', '#BDB2C9'];
-function toneFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return TONES[h % TONES.length];
-}
-
 export function Avatar({ p, size = 40 }: { p: Pick<MiniProfile, 'id' | 'display_name' | 'avatar_path'> | null | undefined; size?: number }) {
   const url = mediaUrl(p?.avatar_path);
   const initial = (p?.display_name || '?').trim().charAt(0).toUpperCase();
   return (
-    <span
-      className="avatar"
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.35), background: toneFor(p?.id || 'x'), fontSize: Math.round(size * 0.38) }}
-    >
+    <span className="avatar" style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}>
       {url ? <img src={url} alt="" loading="lazy" /> : initial}
     </span>
   );
 }
 
-export function Spinner() {
-  return <div className="empty" role="status">…</div>;
+/** Логотип в духе dev/flow_: слово и мигающий курсор */
+export function Logo({ size }: { size?: number }) {
+  return (
+    <span className="logo" style={size ? { fontSize: size } : undefined} aria-label="inner">
+      inner<span className="caret" aria-hidden="true">_</span>
+    </span>
+  );
+}
+
+/** Счётчик непрочитанного: 1–99, дальше 99+ */
+export function Badge({ n, className = '' }: { n: number; className?: string }) {
+  if (n <= 0) return null;
+  return <span className={'badge ' + className}>{n > 99 ? '99+' : n}</span>;
+}
+
+/** Лучи с главной devflow.bg — фон экрана звонка и входа, только transform */
+export function Beams({ off = false }: { off?: boolean }) {
+  return (
+    <div className={'beams' + (off ? ' off' : '')} aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+    </div>
+  );
 }

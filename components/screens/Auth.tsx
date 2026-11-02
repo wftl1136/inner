@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { sb } from '@/lib/supabase';
 import { LANGS, useT } from '@/lib/i18n';
+import { Beams, Icon, Logo } from '../ui';
 
 export default function AuthScreen() {
   const { t, lang, setLang } = useT();
@@ -51,13 +52,13 @@ export default function AuthScreen() {
   }
 
   return (
-    <div className="shell">
-      <div className="page" style={{ maxWidth: 440, paddingBottom: 'calc(env(safe-area-inset-bottom) + 28px)', gap: 22 }}>
+    <div className="shell" style={{ position: 'relative', overflow: 'hidden' }}>
+      <div className="auth-hero">
+        <Beams />
+      </div>
+      <div className="page" style={{ maxWidth: 440, paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)', gap: 24, position: 'relative' }}>
         <div className="row" style={{ justifyContent: 'space-between', paddingTop: 12 }}>
-          <div className="row" style={{ gap: 6 }}>
-            <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.8 }}>inner</span>
-            <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--accent)', marginTop: 6 }} />
-          </div>
+          <Logo />
           <label className="sr-only" htmlFor="lang">
             {t('language')}
           </label>
@@ -65,7 +66,7 @@ export default function AuthScreen() {
             id="lang"
             value={lang}
             onChange={(e) => setLang(e.target.value as typeof lang)}
-            style={{ height: 36, borderRadius: 18, border: 0, background: 'var(--fill)', padding: '0 12px', fontSize: 14 }}
+            style={{ height: 36, borderRadius: 18, border: '1px solid var(--line)', background: 'var(--fill)', padding: '0 12px', fontSize: 14 }}
           >
             {LANGS.map((l) => (
               <option key={l.id} value={l.id}>
@@ -75,14 +76,16 @@ export default function AuthScreen() {
           </select>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 48 }}>
           {inviter && (
-            <span className="sys" style={{ alignSelf: 'flex-start' }}>
+            <span className="meta" style={{ color: 'var(--text2)' }}>
               {t('invitedBy', { name: '@' + inviter })}
             </span>
           )}
-          <h1 style={{ margin: 0, fontSize: 40, fontWeight: 700, lineHeight: 1.05, letterSpacing: -1.4 }}>{t('appTagline')}</h1>
-          <p className="subtitle" style={{ fontSize: 17, lineHeight: 1.45 }}>
+          <h1 className="title" style={{ fontSize: 36, lineHeight: 1.1 }}>
+            {t('appTagline')}
+          </h1>
+          <p className="subtitle" style={{ fontSize: 16, lineHeight: 1.5 }}>
             {t('appSub')}
           </p>
         </div>
@@ -95,7 +98,7 @@ export default function AuthScreen() {
             </button>
           </div>
         ) : (
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {mode === 'up' && (
               <>
                 <label className="field">
@@ -114,7 +117,7 @@ export default function AuthScreen() {
                     placeholder="maks.zh"
                     required
                   />
-                  <span style={{ fontWeight: 400, fontSize: 12 }}>{t('usernameHint')}</span>
+                  <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text3)' }}>{t('usernameHint')}</span>
                 </label>
               </>
             )}
@@ -140,8 +143,11 @@ export default function AuthScreen() {
                 {err}
               </p>
             )}
-            <button className="btn primary block" type="submit" disabled={busy} style={{ marginTop: 6, height: 54, fontSize: 17 }}>
+            <button className="btn primary block arrow" type="submit" disabled={busy} style={{ marginTop: 8, height: 52, borderRadius: 26, paddingLeft: 24 }}>
               {busy ? t('loading') : mode === 'up' ? t('signUp') : t('signIn')}
+              <span className="btn-arrow" style={{ width: 36, height: 36, borderRadius: 18 }}>
+                <Icon name="arrowRight" size={18} />
+              </span>
             </button>
           </form>
         )}
@@ -150,13 +156,11 @@ export default function AuthScreen() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
           <span className="muted" style={{ fontSize: 15 }}>
             {mode === 'up' ? t('haveAccount') : t('noAccount')}{' '}
-            <button style={{ color: 'var(--text)', fontWeight: 600 }} onClick={() => { setErr(''); setMode(mode === 'up' ? 'in' : 'up'); }}>
+            <button style={{ color: 'var(--text)', fontWeight: 500, textDecoration: 'underline', textUnderlineOffset: 4, textDecorationColor: 'var(--line-strong)' }} onClick={() => { setErr(''); setMode(mode === 'up' ? 'in' : 'up'); }}>
               {mode === 'up' ? t('signIn') : t('signUp')}
             </button>
           </span>
-          <span className="muted" style={{ fontSize: 12 }}>
-            {t('terms')}
-          </span>
+          <span style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.5 }}>{t('terms')}</span>
         </div>
       </div>
     </div>

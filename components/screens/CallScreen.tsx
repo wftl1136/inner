@@ -17,7 +17,7 @@ import { useApp } from '@/lib/app';
 import { useT } from '@/lib/i18n';
 import { sb } from '@/lib/supabase';
 import type { Call, MiniProfile } from '@/lib/types';
-import { Avatar, Icon } from '../ui';
+import { Avatar, Beams, Icon } from '../ui';
 
 type Phase = 'ringing' | 'connecting' | 'live' | 'ended';
 type Mode = 'auto' | 'hd' | 'eco';
@@ -294,24 +294,21 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
   const showVideo = isVideo && remoteVideo && phase === 'live';
 
   return (
-    <div className="call-stage" role="dialog" aria-modal="true" aria-label={other?.display_name || 'call'} style={{ background: showVideo ? '#000' : 'var(--bg)', color: showVideo ? '#f5f5f7' : 'var(--text)' }}>
+    <div className="call-stage" role="dialog" aria-modal="true" aria-label={other?.display_name || 'call'}>
+      <Beams off={phase === 'live' || phase === 'ended'} />
       <video ref={remoteVideoEl} autoPlay playsInline style={{ position: 'absolute', inset: 0, display: showVideo ? 'block' : 'none' }} />
       <div ref={audioBox} hidden />
 
       {!showVideo && (
-        <div className="center" style={{ position: 'absolute', inset: 0, flexDirection: 'column', gap: 26, paddingBottom: 140 }}>
-          <div className="center" style={{ width: 236, height: 236, borderRadius: 86, background: 'var(--accent-soft)' }}>
-            <div className="center" style={{ width: 192, height: 192, borderRadius: 70, background: 'var(--accent-soft)' }}>
-              <Avatar p={other} size={146} />
-            </div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: -0.7 }}>{other?.display_name || '…'}</h1>
-            <p className="muted" style={{ margin: '6px 0 0', fontSize: 17, fontVariantNumeric: 'tabular-nums' }}>
+        <div className="center" style={{ position: 'absolute', inset: 0, flexDirection: 'column', gap: 24, paddingBottom: 160 }}>
+          <Avatar p={other} size={128} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '0 24px', textAlign: 'center' }}>
+            <h1 className="title">{other?.display_name || t('loading')}</h1>
+            <p className="meta" style={{ margin: 0, fontSize: 15, color: 'var(--text2)' }}>
               {(isVideo ? t('video') : t('voice')) + ' · ' + status}
             </p>
             {detail && (
-              <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+              <p className="meta" style={{ margin: 0 }}>
                 {detail}
               </p>
             )}
@@ -321,9 +318,9 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
 
       {showVideo && (
         <div className="row" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', left: 16, right: 16, justifyContent: 'center' }}>
-          <div className="glass" style={{ padding: '7px 18px', borderRadius: 22, textAlign: 'center', color: 'var(--text)' }}>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>{other?.display_name}</div>
-            <div className="muted" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+          <div className="media-chip" style={{ padding: '8px 16px', borderRadius: 20, textAlign: 'center' }}>
+            <div className="name">{other?.display_name}</div>
+            <div className="meta" style={{ color: 'var(--text2)' }}>
               {status}
             </div>
           </div>
@@ -331,7 +328,7 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
       )}
 
       {isVideo && phase === 'live' && (
-        <button className="glass" onClick={cycleMode} aria-label={modeHint} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', right: 16, height: 44, padding: '0 14px', borderRadius: 22, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+        <button className="media-chip meta" onClick={cycleMode} aria-label={modeHint} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', right: 16, height: 40, padding: '0 14px', borderRadius: 20, fontSize: 13, color: '#f2f2f2' }}>
           {modeLabel}
         </button>
       )}
@@ -345,47 +342,47 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
       {needAudioTap && phase === 'live' && (
         <button
           className="btn primary"
-          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(env(safe-area-inset-bottom) + 124px)' }}
+          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(env(safe-area-inset-bottom) + 128px)' }}
           onClick={() => roomRef.current?.startAudio().then(() => setNeedAudioTap(false))}
         >
           {t('enableSound')}
         </button>
       )}
 
-      <div className="call-controls glass" style={{ color: 'var(--text)' }}>
+      <div className="call-controls">
         {phase === 'ringing' && !isCaller ? (
           <>
-            <button className="call-btn end" aria-label={t('decline')} onClick={hangUp}>
-              <span style={{ transform: 'rotate(135deg)', display: 'flex' }}>
-                <Icon name="phone" size={24} stroke={2.2} />
-              </span>
-            </button>
-            <span className="muted" style={{ fontSize: 13 }}>
-              {isVideo ? t('videoCall') : t('voice')}
-            </span>
-            <button className="call-btn answer" aria-label={t('answer')} onClick={accept}>
-              <Icon name={isVideo ? 'video' : 'phone'} size={24} stroke={2.2} />
-            </button>
+            <div>
+              <button className="call-btn end" aria-label={t('decline')} onClick={hangUp}>
+                <Icon name="hangup" size={26} />
+              </button>
+              <div className="call-label">{t('decline')}</div>
+            </div>
+            <div style={{ width: 64 }} />
+            <div>
+              <button className="call-btn answer" aria-label={t('answer')} onClick={accept}>
+                <Icon name={isVideo ? 'video' : 'phone'} size={26} />
+              </button>
+              <div className="call-label">{t('answer')}</div>
+            </div>
           </>
         ) : (
           <>
             <button className={'call-btn' + (micOn ? '' : ' on')} aria-label={t('mic')} aria-pressed={!micOn} onClick={toggleMic}>
-              <Icon name="mic" size={23} />
+              <Icon name="mic" size={24} />
             </button>
             {isVideo && (
               <button className={'call-btn' + (camOn ? '' : ' on')} aria-label={t('camera')} aria-pressed={!camOn} onClick={toggleCam}>
-                <Icon name="video" size={23} />
+                <Icon name="video" size={24} />
               </button>
             )}
             {isVideo && (
               <button className="call-btn" aria-label={t('flip')} onClick={flip}>
-                <Icon name="flip" size={23} />
+                <Icon name="flip" size={24} />
               </button>
             )}
             <button className="call-btn end" aria-label={t('end')} onClick={hangUp}>
-              <span style={{ transform: 'rotate(135deg)', display: 'flex' }}>
-                <Icon name="phone" size={24} stroke={2.2} />
-              </span>
+              <Icon name="hangup" size={26} />
             </button>
           </>
         )}

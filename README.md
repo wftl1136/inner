@@ -28,6 +28,12 @@ npm run dev
 ```
 Для звонков локально создай `.env.local` с `LIVEKIT_API_KEY` и `LIVEKIT_API_SECRET`.
 
+### Стенд без базы
+```bash
+INNER_MOCK=1 npx next dev
+```
+Supabase подменяется данными в памяти (`dev/mock-supabase.ts`): круг из 11 человек, посты, истории, чаты, звонки. В консоли браузера `__mock.emit('messages', { conversation_id: 'cv2', sender_id: 'u-dima', body: 'Привет' })` присылает событие как realtime — так проверяются счётчики на иконках. В сборку для Vercel стенд не попадает.
+
 ## Что дальше
 - Нативные приложения iOS/Android (Expo) и пуш-уведомления о звонках
 - Фото и голосовые в чатах, групповые чаты и групповые звонки

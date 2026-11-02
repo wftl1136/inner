@@ -114,37 +114,39 @@ export default function ProfileScreen({ username }: { username: string }) {
     <div className="page">
       <div className="topbar">
         {rel === 'self' ? (
-          <button className="icon-btn glass" aria-label={t('inviteFriends')} onClick={() => shareInvite(p.username, t('shareText'), () => toast(t('linkCopied')))}>
-            <Icon name="share" size={19} />
+          <button className="icon-btn filled" aria-label={t('inviteFriends')} onClick={() => shareInvite(p.username, t('shareText'), () => toast(t('linkCopied')))}>
+            <Icon name="share" />
           </button>
         ) : (
-          <button className="icon-btn glass" aria-label={t('back')} onClick={() => history.back()}>
-            <Icon name="back" size={20} stroke={2.2} />
+          <button className="icon-btn filled" aria-label={t('back')} onClick={() => history.back()}>
+            <Icon name="back" size={22} />
           </button>
         )}
         {rel === 'self' && (
-          <button className="icon-btn glass" aria-label={t('settings')} onClick={() => go('settings')}>
-            <Icon name="menu" size={19} />
+          <button className="icon-btn filled" aria-label={t('settings')} onClick={() => go('settings')}>
+            <Icon name="settings" />
           </button>
         )}
       </div>
 
-      <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center', marginTop: -6 }}>
-        <button onClick={() => rel === 'self' && fileRef.current?.click()} aria-label={rel === 'self' ? t('changePhoto') : p.display_name} style={{ cursor: rel === 'self' ? 'pointer' : 'default' }}>
-          <Avatar p={p} size={92} />
-        </button>
+      <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+        <CircleRing count={circleCount ?? 0} max={max} label={rel === 'self' ? t('myCircle') : t('circle')}>
+          <button onClick={() => rel === 'self' && fileRef.current?.click()} aria-label={rel === 'self' ? t('changePhoto') : p.display_name} style={{ cursor: rel === 'self' ? 'pointer' : 'default', borderRadius: '50%' }}>
+            <Avatar p={p} size={160} />
+          </button>
+        </CircleRing>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={changeAvatar} />
         {editing ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', textAlign: 'left' }}>
             <label className="field">
               {t('displayName')}
               <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
             </label>
             <label className="field">
               {t('bio')}
-              <textarea className="input" style={{ height: 96, padding: 14, resize: 'none' }} value={bio} onChange={(e) => setBio(e.target.value)} maxLength={300} />
+              <textarea className="input" style={{ height: 96, padding: '12px 16px', resize: 'none' }} value={bio} onChange={(e) => setBio(e.target.value)} maxLength={300} />
             </label>
-            <div className="row">
+            <div className="row" style={{ gap: 8 }}>
               <button className="btn fill grow" onClick={() => setEditing(false)}>
                 {t('cancel')}
               </button>
@@ -154,42 +156,30 @@ export default function ProfileScreen({ username }: { username: string }) {
             </div>
           </div>
         ) : (
-          <>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: -0.6 }}>{p.display_name}</h1>
-              <div className="row" style={{ justifyContent: 'center', gap: 8 }}>
-                <span className="muted" style={{ fontSize: 15 }}>
-                  @{p.username}
-                </span>
-                {p.plus && (
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, border: '1px solid var(--accent)', color: 'var(--accent)' }}>inner+</span>
-                )}
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <h1 className="title" style={{ fontSize: 24 }}>{p.display_name}</h1>
+            <div className="row" style={{ justifyContent: 'center', gap: 8 }}>
+              <span className="meta" style={{ fontSize: 13, color: 'var(--text2)' }}>@{p.username}</span>
+              {p.plus && <span className="meta" style={{ fontSize: 13, color: 'var(--text)' }}>inner+</span>}
             </div>
-            {p.bio && <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45 }}>{p.bio}</p>}
-          </>
+            <span className="meta" style={{ fontSize: 13 }}>
+              {rel === 'self' ? t('myCircle') : t('circle')} ({circleCount ?? '—'}/{max})
+            </span>
+            {p.bio && <p style={{ margin: '4px 0 0', fontSize: 15, lineHeight: 1.5, maxWidth: 440 }}>{p.bio}</p>}
+          </div>
         )}
       </section>
 
       {!editing && (
         <>
-          <section className="card" style={{ borderRadius: 24, padding: 16 }}>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 15, fontWeight: 600 }}>{rel === 'self' ? t('myCircle') : t('circle')}</span>
-              <span className="muted" style={{ fontSize: 15 }}>
-                <span style={{ color: 'var(--text)', fontWeight: 600 }}>{circleCount ?? '—'}</span> {t('of')} {max}
-              </span>
-            </div>
-            <span style={{ height: 6, borderRadius: 3, background: 'var(--fill)', display: 'flex' }}>
-              <span style={{ width: `${Math.min(100, ((circleCount || 0) / max) * 100)}%`, borderRadius: 3, background: 'var(--accent)' }} />
-            </span>
-          </section>
-
           <div className="row" style={{ gap: 8 }}>
             {rel === 'self' && (
               <>
-                <button className="btn primary grow" onClick={() => shareInvite(p.username, t('shareText'), () => toast(t('linkCopied')))}>
+                <button className="btn primary arrow grow" onClick={() => shareInvite(p.username, t('shareText'), () => toast(t('linkCopied')))}>
                   {t('copyInvite')}
+                  <span className="btn-arrow">
+                    <Icon name="arrowRight" size={16} />
+                  </span>
                 </button>
                 <button className="btn fill" onClick={() => setEditing(true)}>
                   {t('edit')}
@@ -221,29 +211,28 @@ export default function ProfileScreen({ username }: { username: string }) {
                 <button className="btn primary grow" onClick={openChat}>
                   {t('write')}
                 </button>
-                <button className="icon-btn" style={{ background: 'var(--fill)', width: 50, height: 50, borderRadius: 25 }} aria-label={t('call')} onClick={() => startCall(p.id, 'voice')}>
-                  <Icon name="phone" size={20} />
+                <button className="icon-btn filled lg" aria-label={t('call')} onClick={() => startCall(p.id, 'voice')}>
+                  <Icon name="phone" />
                 </button>
-                <button className="icon-btn" style={{ background: 'var(--fill)', width: 50, height: 50, borderRadius: 25 }} aria-label={t('videoCall')} onClick={() => startCall(p.id, 'video')}>
-                  <Icon name="video" size={21} />
+                <button className="icon-btn filled lg" aria-label={t('videoCall')} onClick={() => startCall(p.id, 'video')}>
+                  <Icon name="video" size={22} />
                 </button>
-                <button className="icon-btn" style={{ background: 'var(--fill)', width: 50, height: 50, borderRadius: 25 }} aria-label={t('removeFromCircle')} onClick={removeFriend}>
-                  <Icon name="more" size={20} />
+                <button className="icon-btn filled lg" aria-label={t('removeFromCircle')} onClick={removeFriend}>
+                  <Icon name="more" />
                 </button>
               </>
             )}
           </div>
 
           {rel !== 'self' && rel !== 'friend' ? (
-            <p className="empty">
-              <Icon name="lock" size={18} />
-              <br />
+            <p className="empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <Icon name="lock" />
               {t('privateProfile')}
             </p>
           ) : posts.length === 0 ? (
             <p className="empty">{t('noPosts')}</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--line)' }}>
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} liked={liked.has(post.id)} onChanged={load} />
               ))}
@@ -252,6 +241,41 @@ export default function ProfileScreen({ username }: { username: string }) {
           {rel === 'self' && me && <span className="sr-only">{me.username}</span>}
         </>
       )}
+    </div>
+  );
+}
+
+/** Круг: 150 делений вокруг аватара, занятые места светятся по очереди */
+function CircleRing({ count, max, label, children }: { count: number; max: number; label: string; children: React.ReactNode }) {
+  const [lit, setLit] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLit(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const ticks = 150;
+  const filled = Math.round((Math.min(count, max) / max) * ticks);
+  const c = 112;
+  return (
+    <div className="ring" role="img" aria-label={`${label}: ${count} / ${max}`}>
+      <svg viewBox="0 0 224 224" aria-hidden="true">
+        {Array.from({ length: ticks }, (_, i) => {
+          const a = (i / ticks) * Math.PI * 2 - Math.PI / 2;
+          const on = lit && i < filled;
+          return (
+            <line
+              key={i}
+              x1={c + Math.cos(a) * 98}
+              y1={c + Math.sin(a) * 98}
+              x2={c + Math.cos(a) * 108}
+              y2={c + Math.sin(a) * 108}
+              strokeWidth={on ? 2 : 1.25}
+              className={on ? 'on' : undefined}
+              style={{ '--d': `${Math.round((i / Math.max(filled, 1)) * 900)}ms` } as React.CSSProperties}
+            />
+          );
+        })}
+      </svg>
+      {children}
     </div>
   );
 }

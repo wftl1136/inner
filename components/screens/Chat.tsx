@@ -20,6 +20,8 @@ export default function ChatScreen({ conversationId }: { conversationId: string 
   const [shared, setShared] = useState<Record<string, Post | null>>({});
   const [draft, setDraft] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+  // Сообщения, загруженные при открытии, не анимируем — только новые
+  const initial = useRef<Set<string> | null>(null);
 
   const markRead = useCallback(async () => {
     await sb().from('messages').update({ read_at: new Date().toISOString() }).eq('conversation_id', conversationId).neq('sender_id', userId).is('read_at', null);
@@ -32,7 +34,9 @@ export default function ChatScreen({ conversationId }: { conversationId: string 
       const conv = c as unknown as { user_a: string; a: MiniProfile; b: MiniProfile };
       setOther(conv.user_a === userId ? conv.b : conv.a);
       const { data } = await sb().from('messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(200);
-      setMsgs(((data || []) as Message[]).reverse());
+      const list = ((data || []) as Message[]).reverse();
+      initial.current = new Set(list.map((m) => m.id));
+      setMsgs(list);
       markRead();
     })();
     const ch = sb()
@@ -80,69 +84,72 @@ export default function ChatScreen({ conversationId }: { conversationId: string 
   const lastMine = [...msgs].reverse().find((m) => m.sender_id === userId);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%' }}>
-      <div className="row" style={{ position: 'sticky', top: 0, zIndex: 5, padding: 'calc(env(safe-area-inset-top) + 8px) 12px 8px', gap: 8 }}>
-        <button className="icon-btn glass" aria-label={t('back')} onClick={() => go('chats')}>
-          <Icon name="back" size={20} stroke={2.2} />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', animation: 'fade var(--t-enter) var(--ease) both' }}>
+      <header className="chat-head glass">
+        <button className="icon-btn" aria-label={t('back')} onClick={() => go('chats')}>
+          <Icon name="back" size={22} />
         </button>
-        <button className="row glass grow" style={{ height: 48, borderRadius: 24, padding: '0 14px 0 6px', textAlign: 'left' }} onClick={() => other && go('profile/' + other.username)}>
+        <button className="row grow" style={{ gap: 12, textAlign: 'left' }} onClick={() => other && go('profile/' + other.username)}>
           <Avatar p={other} size={36} />
-          <span className="ellipsis" style={{ fontWeight: 600, fontSize: 15 }}>
-            {other?.display_name}
+          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span className="name ellipsis">{other?.display_name}</span>
+            {other && <span className="meta ellipsis">@{other.username}</span>}
           </span>
         </button>
-        <div className="capsule glass">
+        <div className="actions">
           <button className="icon-btn" aria-label={t('call')} onClick={() => other && startCall(other.id, 'voice')}>
-            <Icon name="phone" size={19} />
+            <Icon name="phone" />
           </button>
           <button className="icon-btn" aria-label={t('videoCall')} onClick={() => other && startCall(other.id, 'video')}>
-            <Icon name="video" size={20} />
+            <Icon name="video" size={22} />
           </button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {msgs.map((m, i) => {
           const prev = msgs[i - 1];
           const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString();
           const out = m.sender_id === userId;
+          const gapAbove = prev && !newDay && prev.sender_id !== m.sender_id ? 8 : 0;
+          const fresh = initial.current && !initial.current.has(m.id) ? ' new' : '';
           const post = m.shared_post_id ? shared[m.shared_post_id] : undefined;
           const rawContent = post?.repost_of ? post.original : post;
           const content = rawContent && rawContent.author ? rawContent : null;
           return (
             <div key={m.id} style={{ display: 'contents' }}>
-              {newDay && <span className="sys" style={{ margin: '8px 0' }}>{dayFmt.format(new Date(m.created_at))}</span>}
+              {newDay && <span className="day meta">{dayFmt.format(new Date(m.created_at))}</span>}
               {m.shared_post_id && (
                 <button
-                  className={'bubble ' + (out ? 'out' : 'in')}
-                  style={{ padding: 8, width: 240, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' }}
+                  className={'bubble ' + (out ? 'out' : 'in') + fresh}
+                  style={{ padding: 8, width: 248, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left', marginTop: gapAbove }}
                   onClick={() => content && go('profile/' + content.author.username)}
                 >
-                  <span className="row" style={{ gap: 5, fontSize: 12, fontWeight: 600, opacity: 0.75 }}>
-                    <Icon name="repost" size={12} stroke={2.4} />
+                  <span className="row meta" style={{ gap: 6, padding: '2px 4px 0', color: 'inherit', opacity: 0.7 }}>
+                    <Icon name="repost" size={14} />
                     {t('sharedPost')}
                   </span>
                   {content ? (
                     <>
-                      <span className="row" style={{ gap: 8 }}>
+                      <span className="row" style={{ gap: 8, padding: '0 4px' }}>
                         <Avatar p={content.author} size={24} />
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>{content.author.display_name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{content.author.display_name}</span>
                       </span>
-                      {content.image_path && <img src={mediaUrl(content.image_path) || ''} alt="" style={{ borderRadius: 12, maxHeight: 180, objectFit: 'cover' }} />}
-                      {content.body && <span style={{ fontSize: 14, lineHeight: 1.35 }}>{content.body.slice(0, 160)}</span>}
+                      {content.image_path && <img src={mediaUrl(content.image_path) || ''} alt="" style={{ borderRadius: 12, height: 180, width: '100%', objectFit: 'cover' }} />}
+                      {content.body && <span style={{ fontSize: 14, lineHeight: 1.4, padding: '0 4px 4px' }}>{content.body.slice(0, 160)}</span>}
                     </>
                   ) : (
-                    <span style={{ fontSize: 13 }}>{post === null ? t('originalHidden') : '…'}</span>
+                    <span style={{ fontSize: 13, padding: '0 4px 4px' }}>{post === null ? t('originalHidden') : t('loading')}</span>
                   )}
                 </button>
               )}
               {m.body && (
-                <div className={'bubble ' + (out ? 'out' : 'in')} title={fmt.format(new Date(m.created_at))}>
+                <div className={'bubble ' + (out ? 'out' : 'in') + fresh} title={fmt.format(new Date(m.created_at))} style={{ marginTop: m.shared_post_id ? 0 : gapAbove }}>
                   {m.body}
                 </div>
               )}
               {out && m.id === lastMine?.id && m.read_at && (
-                <span className="muted" style={{ alignSelf: 'flex-end', fontSize: 11, paddingRight: 4 }}>
+                <span className="meta" style={{ alignSelf: 'flex-end', fontSize: 11, padding: '2px 4px 0' }}>
                   {t('readAt')} {fmt.format(new Date(m.read_at))}
                 </span>
               )}
@@ -152,22 +159,13 @@ export default function ChatScreen({ conversationId }: { conversationId: string 
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={send} className="row" style={{ padding: '8px 12px calc(env(safe-area-inset-bottom) + 10px)', gap: 8 }}>
+      <form onSubmit={send} className="composer">
         <label className="sr-only" htmlFor="msg">
           {t('message')}
         </label>
-        <input
-          id="msg"
-          className="glass"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t('message')}
-          maxLength={4000}
-          autoComplete="off"
-          style={{ flex: 1, minWidth: 0, height: 46, borderRadius: 23, padding: '0 18px', fontSize: 16 }}
-        />
-        <button type="submit" className="icon-btn" aria-label={t('send')} style={{ width: 46, height: 46, borderRadius: 23, background: 'var(--primary)', color: 'var(--on-primary)' }}>
-          <Icon name="send" size={19} />
+        <input id="msg" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('message')} maxLength={4000} autoComplete="off" />
+        <button type="submit" className="icon-btn send-btn" aria-label={t('send')} disabled={!draft.trim()}>
+          <Icon name="arrowUp" />
         </button>
       </form>
     </div>

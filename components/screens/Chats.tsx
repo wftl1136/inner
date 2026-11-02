@@ -8,7 +8,7 @@ import { timeAgo, useT } from '@/lib/i18n';
 import { sb } from '@/lib/supabase';
 import type { Message, MiniProfile } from '@/lib/types';
 import { FriendPicker } from '../Sheet';
-import { Avatar, Icon } from '../ui';
+import { Avatar, Badge, Icon } from '../ui';
 
 const P = 'id,username,display_name,avatar_path';
 type Row = { id: string; other: MiniProfile; last: Message | null; unread: number; at: string };
@@ -53,7 +53,7 @@ export default function Chats() {
     load();
     const ch = sb()
       .channel(uniq('chats-list'))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => load())
       .subscribe();
     return () => {
       sb().removeChannel(ch);
@@ -78,16 +78,18 @@ export default function Chats() {
     return (m.sender_id === userId ? t('you') + ': ' : '') + m.body;
   }
 
+  const unreadChats = (rows || []).filter((r) => r.unread > 0).length;
+
   return (
     <div className="page">
       <header className="topbar">
         <h1 className="title">{t('tabChats')}</h1>
-        <button className="icon-btn glass" aria-label={t('newChat')} onClick={() => setPicker(true)}>
-          <Icon name="edit" size={19} />
+        <button className="icon-btn filled" aria-label={t('newChat')} onClick={() => setPicker(true)}>
+          <Icon name="edit" />
         </button>
       </header>
       <label className="search">
-        <Icon name="search" size={17} />
+        <Icon name="search" size={18} />
         <span className="sr-only">{t('searchUser')}</span>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchUser')} />
       </label>
@@ -97,33 +99,37 @@ export default function Chats() {
         </button>
         <button className={'chip' + (filter === 'unread' ? ' on' : '')} aria-pressed={filter === 'unread'} onClick={() => setFilter('unread')}>
           {t('unread')}
+          {unreadChats > 0 && <span className="count">{unreadChats}</span>}
         </button>
       </div>
       {rows === null && <p className="empty">{t('loading')}</p>}
       {rows && shown.length === 0 && <p className="empty">{t('chatsEmpty')}</p>}
       {shown.length > 0 && (
-        <div className="group">
-          {shown.map((r) => (
-            <button key={r.id} className="cell" onClick={() => go('chat/' + r.id)}>
-              <Avatar p={r.other} size={52} />
-              <span className="cell-body" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 3, paddingTop: 12, paddingBottom: 12 }}>
-                <span className="row" style={{ justifyContent: 'space-between' }}>
-                  <strong className="ellipsis" style={{ fontWeight: 600 }}>
-                    {r.other.display_name}
-                  </strong>
-                  <span className="muted" style={{ fontSize: 13, flexShrink: 0 }}>
-                    {timeAgo(r.at, t)}
+        <div className="list">
+          {shown.map((r) => {
+            const fresh = r.unread > 0;
+            return (
+              <button key={r.id} className="cell" onClick={() => go('chat/' + r.id)}>
+                <Avatar p={r.other} size={52} />
+                <span className="cell-body" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4, minHeight: 76, justifyContent: 'center' }}>
+                  <span className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+                    <span className="name ellipsis" style={{ fontWeight: fresh ? 600 : 500 }}>
+                      {r.other.display_name}
+                    </span>
+                    <span className="meta" style={{ flexShrink: 0, color: fresh ? 'var(--text)' : undefined }}>
+                      {timeAgo(r.at, t)}
+                    </span>
+                  </span>
+                  <span className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+                    <span className="ellipsis" style={{ fontSize: 14, color: fresh ? 'var(--text)' : 'var(--text2)' }}>
+                      {preview(r.last)}
+                    </span>
+                    <Badge n={r.unread} />
                   </span>
                 </span>
-                <span className="row" style={{ justifyContent: 'space-between' }}>
-                  <span className="muted ellipsis" style={{ fontSize: 15 }}>
-                    {preview(r.last)}
-                  </span>
-                  {r.unread > 0 && <span className="badge">{r.unread}</span>}
-                </span>
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
       {picker && <FriendPicker onPick={startChat} onClose={() => setPicker(false)} />}

@@ -32,30 +32,30 @@ export default function Search() {
   return (
     <div className="page">
       <div className="topbar">
-        <button className="icon-btn glass" aria-label={t('back')} onClick={() => history.back()}>
-          <Icon name="back" size={20} stroke={2.2} />
+        <button className="icon-btn filled" aria-label={t('back')} onClick={() => history.back()}>
+          <Icon name="back" size={22} />
         </button>
       </div>
       <h1 className="title">{t('findPeople')}</h1>
       <label className="search">
-        <Icon name="search" size={17} />
+        <Icon name="search" size={18} />
         <span className="sr-only">{t('searchUser')}</span>
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchUser')} autoCapitalize="none" autoCorrect="off" />
       </label>
       {q.trim().length >= 2 && results.length === 0 && <p className="empty">{t('nothingFound')}</p>}
       {results.length > 0 && (
-        <div className="group">
+        <div className="list">
           {results.map((p) => (
             <button key={p.id} className="cell" onClick={() => go('profile/' + p.username)}>
               <Avatar p={p} size={44} />
-              <span className="cell-body">
-                <span style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600 }}>{p.display_name}</span>
-                  <span className="muted" style={{ fontSize: 14 }}>
-                    @{p.username}
-                  </span>
+              <span className="cell-body" style={{ minHeight: 64 }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span className="name">{p.display_name}</span>
+                  <span className="meta">@{p.username}</span>
                 </span>
-                <Icon name="chevron" size={16} />
+                <span style={{ color: 'var(--text3)', display: 'flex' }}>
+                  <Icon name="chevron" size={16} />
+                </span>
               </span>
             </button>
           ))}

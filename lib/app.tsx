@@ -36,7 +36,34 @@ type AppCtx = {
   startCall: (calleeId: string, kind: 'voice' | 'video') => Promise<void>;
   profileCache: Record<string, MiniProfile>;
   rememberProfiles: (ps: MiniProfile[]) => void;
+  badges: Badges;
+  refreshBadges: () => void;
 };
+
+/** Счётчики на иконках: непрочитанные сообщения, пропущенные звонки, новое в уведомлениях */
+export type Badges = { chats: number; calls: number; notifications: number };
+
+const SEEN_CALLS = 'inner.seen.calls';
+const SEEN_NOTIFS = 'inner.seen.notifications';
+
+// Первый запуск: считаем новым всё за последние сутки, а не всю историю
+function seenAt(key: string) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v) return v;
+    const start = new Date(Date.now() - 86400000).toISOString();
+    localStorage.setItem(key, start);
+    return start;
+  } catch {
+    return new Date(Date.now() - 86400000).toISOString();
+  }
+}
+
+function markSeenNow(key: string) {
+  try {
+    localStorage.setItem(key, new Date().toISOString());
+  } catch {}
+}
 
 const Ctx = createContext<AppCtx | null>(null);
 
@@ -55,6 +82,7 @@ export function AppProvider({ userId, children }: { userId: string; children: Re
   const [dataSaver, setDataSaverState] = useState(false);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [profileCache, setProfileCache] = useState<Record<string, MiniProfile>>({});
+  const [counts, setCounts] = useState({ chats: 0, calls: 0, activity: 0 });
 
   const rememberProfiles = useCallback((ps: MiniProfile[]) => {
     if (!ps.length) return;
@@ -108,6 +136,67 @@ export function AppProvider({ userId, children }: { userId: string; children: Re
     };
   }, [userId, refreshFriends]);
 
+  const refreshBadges = useCallback(async () => {
+    const callsSince = seenAt(SEEN_CALLS);
+    const notifSince = seenAt(SEEN_NOTIFS);
+    const [m, c, l, k] = await Promise.all([
+      sb().from('messages').select('id', { count: 'exact', head: true }).neq('sender_id', userId).is('read_at', null),
+      sb().from('calls').select('id', { count: 'exact', head: true }).eq('callee_id', userId).in('status', ['missed', 'cancelled']).gt('created_at', callsSince),
+      sb()
+        .from('likes')
+        .select('post_id,post:posts!inner(author_id)', { count: 'exact', head: true })
+        .eq('post.author_id', userId)
+        .neq('user_id', userId)
+        .gt('created_at', notifSince),
+      sb()
+        .from('comments')
+        .select('id,post:posts!inner(author_id)', { count: 'exact', head: true })
+        .eq('post.author_id', userId)
+        .neq('author_id', userId)
+        .gt('created_at', notifSince)
+    ]);
+    setCounts({ chats: m.count || 0, calls: c.count || 0, activity: (l.count || 0) + (k.count || 0) });
+  }, [userId]);
+
+  // Открыл звонки или уведомления — счётчик обнуляется
+  useEffect(() => {
+    if (route.name === 'calls') markSeenNow(SEEN_CALLS);
+    if (route.name === 'notifications') markSeenNow(SEEN_NOTIFS);
+    refreshBadges();
+  }, [route.name, refreshBadges]);
+
+  // Живые счётчики: новые сообщения, прочтения и звонки
+  useEffect(() => {
+    const ch = sb()
+      .channel(uniq('badges-' + userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => refreshBadges())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => refreshBadges())
+      .subscribe();
+    const onVisible = () => document.visibilityState === 'visible' && refreshBadges();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      sb().removeChannel(ch);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [userId, refreshBadges]);
+
+  const badges = useMemo<Badges>(
+    () => ({
+      chats: counts.chats,
+      calls: route.name === 'calls' ? 0 : counts.calls,
+      notifications: pendingIn + (route.name === 'notifications' ? 0 : counts.activity)
+    }),
+    [counts, pendingIn, route.name]
+  );
+
+  // Тот же счётчик — в заголовке вкладки и на иконке приложения на экране «Домой»
+  useEffect(() => {
+    const total = badges.chats + badges.calls + badges.notifications;
+    document.title = total ? `(${total}) inner` : 'inner';
+    const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    (total ? nav.setAppBadge?.(total) : nav.clearAppBadge?.())?.catch(() => {});
+  }, [badges]);
+
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
     window.setTimeout(() => setToastMsg((m) => (m === msg ? null : m)), 2600);
@@ -149,16 +238,18 @@ export function AppProvider({ userId, children }: { userId: string; children: Re
       setActiveCall,
       startCall,
       profileCache,
-      rememberProfiles
+      rememberProfiles,
+      badges,
+      refreshBadges
     }),
-    [userId, me, refreshMe, friends, refreshFriends, pendingIn, route, toast, dataSaver, setDataSaver, activeCall, startCall, profileCache, rememberProfiles]
+    [userId, me, refreshMe, friends, refreshFriends, pendingIn, route, toast, dataSaver, setDataSaver, activeCall, startCall, profileCache, rememberProfiles, badges, refreshBadges]
   );
 
   return (
     <Ctx.Provider value={value}>
       {children}
       {toastMsg && (
-        <div className="toast glass" role="status">
+        <div className="toast" role="status">
           {toastMsg}
         </div>
       )}

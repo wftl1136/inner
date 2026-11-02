@@ -92,38 +92,37 @@ export function PostCard({ post, liked, onChanged }: { post: Post; liked: boolea
   const canRepost = content ? content.allow_reposts !== false : false;
 
   return (
-    <article className="card">
+    <article className="post">
       {isRepost && (
-        <span className="row muted" style={{ gap: 6, fontSize: 13, fontWeight: 500 }}>
-          <Icon name="repost" size={13} stroke={2.4} />
+        <span className="row meta" style={{ gap: 8 }}>
+          <Icon name="repost" size={14} />
           {t('reposted', { name: post.author.display_name })}
         </span>
       )}
 
       {content ? (
         <>
-          <div className="row" style={{ gap: 11 }}>
+          <div className="row">
             <button onClick={() => go('profile/' + content.author.username)} aria-label={content.author.display_name}>
               <Avatar p={content.author} size={40} />
             </button>
-            <div className="grow" style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <button onClick={() => go('profile/' + content.author.username)} style={{ fontSize: 15, fontWeight: 600, textAlign: 'left' }}>
+            <div className="grow" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <button className="name" onClick={() => go('profile/' + content.author.username)} style={{ textAlign: 'left' }}>
                 {content.author.display_name}
               </button>
-              <span className="row muted" style={{ gap: 4, fontSize: 13 }}>
-                <Icon name="lock" size={11} stroke={2.5} />
+              <span className="meta">
                 {t('circle')} · {timeAgo(content.created_at, t)}
               </span>
             </div>
             {mine && (
-              <button className="icon-btn plain" aria-label={t('more')} onClick={() => setMenu(true)} style={{ color: 'var(--text2)' }}>
-                <Icon name="more" size={20} />
+              <button className="icon-btn" aria-label={t('more')} onClick={() => setMenu(true)} style={{ color: 'var(--text2)' }}>
+                <Icon name="more" />
               </button>
             )}
           </div>
-          {content.body && <p style={{ margin: 0, padding: '0 2px', fontSize: 15, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{content.body}</p>}
+          {content.body && <p className="post-body">{content.body}</p>}
           {img && (
-            <div className="media" style={{ maxHeight: 520 }}>
+            <div className="media" style={{ maxHeight: 560 }}>
               <img src={img} alt="" loading="lazy" decoding="async" />
             </div>
           )}
@@ -134,54 +133,51 @@ export function PostCard({ post, liked, onChanged }: { post: Post; liked: boolea
         </p>
       )}
 
-      <div className="row" style={{ gap: 6 }}>
-        <button className={'pill' + (isLiked ? ' on' : '')} aria-pressed={isLiked} aria-label={t('like')} onClick={toggleLike}>
-          <Icon name="heart" size={18} filled={isLiked} />
-          {likeCount}
+      <div className="row" style={{ gap: 4, marginLeft: -10 }}>
+        <button className={'act' + (isLiked ? ' on' : '')} aria-pressed={isLiked} aria-label={t('like')} onClick={toggleLike}>
+          <Icon name="heart" filled={isLiked} />
+          {likeCount > 0 && likeCount}
         </button>
-        <button className="pill" aria-label={t('comments')} aria-expanded={!!comments} onClick={openComments}>
-          <Icon name="chat" size={18} />
-          {commentCount}
+        <button className="act" aria-label={t('comments')} aria-expanded={!!comments} onClick={openComments}>
+          <Icon name="chat" />
+          {commentCount > 0 && commentCount}
         </button>
         {canRepost && (
-          <button className="pill" aria-label={t('repost')} onClick={repost}>
-            <Icon name="repost" size={18} />
+          <button className="act" aria-label={t('repost')} onClick={repost}>
+            <Icon name="repost" />
           </button>
         )}
         <span style={{ flex: 1 }} />
-        <button className="pill" style={{ width: 38, padding: 0, justifyContent: 'center' }} aria-label={t('send')} onClick={() => setPicker(true)}>
-          <Icon name="send" size={17} />
+        <button className="act" aria-label={t('send')} onClick={() => setPicker(true)} style={{ marginRight: -10 }}>
+          <Icon name="send" />
         </button>
       </div>
 
       {comments && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, animation: 'rise var(--t-enter) var(--ease) both' }}>
           {comments.map((c) => (
             <div key={c.id} className="row" style={{ alignItems: 'flex-start' }}>
               <Avatar p={c.author} size={28} />
-              <div style={{ fontSize: 14, lineHeight: 1.4 }}>
-                <strong style={{ fontWeight: 600 }}>{c.author.display_name}</strong> {c.body}
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {timeAgo(c.created_at, t)}
-                </div>
+              <div style={{ fontSize: 14, lineHeight: 1.45 }}>
+                <span style={{ fontWeight: 500 }}>{c.author.display_name}</span> {c.body}
+                <div className="meta">{timeAgo(c.created_at, t)}</div>
               </div>
             </div>
           ))}
-          <form onSubmit={addComment} className="row">
+          <form onSubmit={addComment} className="composer" style={{ padding: 0 }}>
             <label className="sr-only" htmlFor={'c-' + post.id}>
               {t('writeComment')}
             </label>
             <input
               id={'c-' + post.id}
-              className="input"
-              style={{ height: 40, borderRadius: 20, background: 'var(--fill)', fontSize: 15 }}
+              style={{ height: 40, fontSize: 15 }}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={t('writeComment')}
               maxLength={1000}
             />
-            <button className="icon-btn" type="submit" aria-label={t('send')} style={{ background: 'var(--primary)', color: 'var(--on-primary)', width: 40, height: 40 }}>
-              <Icon name="send" size={16} />
+            <button className="icon-btn send-btn" type="submit" aria-label={t('send')} disabled={!draft.trim()} style={{ width: 40, height: 40 }}>
+              <Icon name="arrowUp" size={18} />
             </button>
           </form>
         </div>
