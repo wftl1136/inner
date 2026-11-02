@@ -22,23 +22,72 @@ export function mediaUrl(path: string | null | undefined): string | null {
   return sb().storage.from('media').getPublicUrl(path).data.publicUrl;
 }
 
-/** Сжимает фото перед загрузкой: меньше трафика у тебя и у друзей. */
-export async function compressImage(file: File, maxSide = 1600, quality = 0.82): Promise<Blob> {
+/** Размер по длинной стороне: 2560 — резко даже на весь экран iPhone, 1440 — в режиме экономии трафика. */
+export const PHOTO_SIDE = 2560;
+export const PHOTO_SIDE_SAVER = 1440;
+export const AVATAR_SIDE = 640;
+
+async function decode(file: File): Promise<ImageBitmap | HTMLImageElement | null> {
   const bitmap = await createImageBitmap(file).catch(() => null);
-  if (!bitmap) return file;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const w = Math.round(bitmap.width * scale);
-  const h = Math.round(bitmap.height * scale);
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  return await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b || file), 'image/jpeg', quality));
+  if (bitmap) return bitmap;
+  // Запасной путь для форматов, которые createImageBitmap не берёт, но <img> показывает (HEIC в Safari)
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
-export async function uploadImage(userId: string, file: File, maxSide = 1600): Promise<string> {
+/**
+ * Готовит фото к загрузке: уменьшает до maxSide по длинной стороне и пережимает один раз в высоком качестве.
+ * Пережатие заодно убирает EXIF с геопозицией — бакет публичный.
+ */
+export async function compressImage(file: File, maxSide = PHOTO_SIDE, quality = 0.92): Promise<Blob> {
+  const src = await decode(file);
+  if (!src) throw new Error('unsupported_image');
+  const w0 = 'naturalWidth' in src ? src.naturalWidth : src.width;
+  const h0 = 'naturalHeight' in src ? src.naturalHeight : src.height;
+  const scale = Math.min(1, maxSide / Math.max(w0, h0));
+  const tw = Math.round(w0 * scale);
+  const th = Math.round(h0 * scale);
+
+  // Уменьшаем ступенями по половине: за один большой шаг браузер мылит и рябит мелкие детали
+  let cur: CanvasImageSource = src;
+  let cw = w0;
+  let ch = h0;
+  while (cw / 2 >= tw && ch / 2 >= th) {
+    const step = document.createElement('canvas');
+    step.width = Math.round(cw / 2);
+    step.height = Math.round(ch / 2);
+    const sctx = step.getContext('2d');
+    if (!sctx) break;
+    sctx.imageSmoothingQuality = 'high';
+    sctx.drawImage(cur, 0, 0, step.width, step.height);
+    cur = step;
+    cw = step.width;
+    ch = step.height;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return file;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(cur, 0, 0, tw, th);
+  if ('close' in src) src.close();
+  return await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode_failed'))), 'image/jpeg', quality)
+  );
+}
+
+export async function uploadImage(userId: string, file: File, maxSide = PHOTO_SIDE): Promise<string> {
   const blob = await compressImage(file, maxSide);
   const path = `${userId}/${crypto.randomUUID()}.jpg`;
   const { error } = await sb().storage.from('media').upload(path, blob, { contentType: 'image/jpeg', upsert: false });

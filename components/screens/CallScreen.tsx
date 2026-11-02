@@ -92,11 +92,22 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
     const eco = mode === 'eco';
     const preset = eco ? VideoPresets.h360 : VideoPresets.h720;
     const room = new Room({
-      adaptiveStream: true,
+      // Слой видео выбирается по реальным пикселям экрана (на iPhone ×3), а не по CSS-размеру — иначе приходит 360p
+      adaptiveStream: { pixelDensity: 'screen' },
       dynacast: true,
       videoCaptureDefaults: { resolution: preset.resolution, facingMode: 'user' },
       audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      publishDefaults: { simulcast: true, videoEncoding: preset.encoding, dtx: true, red: true }
+      publishDefaults: {
+        // H.264 кодируется железом на iPhone и Mac: чётче VP8 при том же трафике и меньше греет телефон
+        videoCodec: 'h264',
+        simulcast: true,
+        videoEncoding: eco ? preset.encoding : { maxBitrate: 2_500_000, maxFramerate: 30 },
+        videoSimulcastLayers: eco ? [VideoPresets.h180] : [VideoPresets.h360, VideoPresets.h540],
+        // При слабой сети сначала падает частота кадров, а не резкость
+        degradationPreference: 'maintain-resolution',
+        dtx: true,
+        red: true
+      }
     });
     roomRef.current = room;
 
@@ -272,7 +283,8 @@ export default function CallScreen({ call, onClose }: { call: Call; onClose: () 
     setMode(next);
     const room = roomRef.current;
     if (!room) return;
-    const q = next === 'eco' ? VideoQuality.LOW : next === 'hd' ? VideoQuality.HIGH : VideoQuality.MEDIUM;
+    // «Авто» тоже просит верхний слой — дальше его ограничивают сеть и размер экрана
+    const q = next === 'eco' ? VideoQuality.LOW : VideoQuality.HIGH;
     room.remoteParticipants.forEach((p) =>
       p.trackPublications.forEach((pub) => {
         if (pub.kind === Track.Kind.Video) pub.setVideoQuality(q);

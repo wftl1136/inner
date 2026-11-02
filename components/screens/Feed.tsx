@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { go, useApp } from '@/lib/app';
 import { useT } from '@/lib/i18n';
 import { fetchPosts } from '@/lib/posts';
-import { mediaUrl, sb, uploadImage } from '@/lib/supabase';
+import { PHOTO_SIDE, PHOTO_SIDE_SAVER, mediaUrl, sb, uploadImage } from '@/lib/supabase';
 import { seenStories, shareInvite } from '@/lib/invite';
 import type { MiniProfile, Post, Story } from '@/lib/types';
 import { PostCard } from '../PostCard';
@@ -14,7 +14,7 @@ type StoryGroup = { author: MiniProfile; stories: Story[]; fresh: boolean };
 
 export default function Feed() {
   const { t } = useT();
-  const { me, userId, friends, toast, badges } = useApp();
+  const { me, userId, friends, toast, badges, dataSaver } = useApp();
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [groups, setGroups] = useState<StoryGroup[]>([]);
@@ -65,7 +65,7 @@ export default function Feed() {
     if (!file) return;
     setUploading(true);
     try {
-      const path = await uploadImage(userId, file, 1440);
+      const path = await uploadImage(userId, file, dataSaver ? PHOTO_SIDE_SAVER : PHOTO_SIDE);
       const { error } = await sb().from('stories').insert({ image_path: path });
       if (error) throw error;
       await load();

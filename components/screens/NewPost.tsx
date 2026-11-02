@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { go, useApp } from '@/lib/app';
 import { useT } from '@/lib/i18n';
-import { sb, uploadImage } from '@/lib/supabase';
+import { PHOTO_SIDE, PHOTO_SIDE_SAVER, sb, uploadImage } from '@/lib/supabase';
 import { Avatar, Icon } from '../ui';
 
 export default function NewPost() {
@@ -28,7 +28,7 @@ export default function NewPost() {
     if (!body.trim() && !file) return;
     setBusy(true);
     try {
-      const image_path = file ? await uploadImage(userId, file, dataSaver ? 1080 : 1600) : null;
+      const image_path = file ? await uploadImage(userId, file, dataSaver ? PHOTO_SIDE_SAVER : PHOTO_SIDE) : null;
       const { error } = await sb().from('posts').insert({ body: body.trim(), image_path, allow_reposts: allowReposts });
       if (error) throw error;
       go('feed');

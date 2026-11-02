@@ -220,6 +220,7 @@ function orMatch(r: Row, expr: string): boolean {
 }
 
 let seq = 1000;
+const uploads: Record<string, { url: string; size: number; type: string; width?: number; height?: number }> = {};
 const listeners: Listener[] = [];
 
 function emit(table: string, event: 'INSERT' | 'UPDATE', row: Row) {
@@ -456,8 +457,12 @@ const client = {
   },
   storage: {
     from: () => ({
-      getPublicUrl: (path: string) => ({ data: { publicUrl: /^(https?:|blob:|data:)/.test(path) ? path : photo(path) } }),
-      upload: async () => ({ data: null, error: null })
+      getPublicUrl: (path: string) => ({ data: { publicUrl: uploads[path]?.url || (/^(https?:|blob:|data:)/.test(path) ? path : photo(path)) } }),
+      upload: async (path: string, blob: Blob) => {
+        const bitmap = await createImageBitmap(blob).catch(() => null);
+        uploads[path] = { url: URL.createObjectURL(blob), size: blob.size, type: blob.type, width: bitmap?.width, height: bitmap?.height };
+        return { data: { path }, error: null };
+      }
     })
   }
 };
@@ -465,6 +470,7 @@ const client = {
 if (typeof window !== 'undefined') {
   (window as any).__mock = {
     db,
+    uploads,
     emit: (table: string, v: Row) => {
       const r = defaults(table, v);
       db[table].push(r);

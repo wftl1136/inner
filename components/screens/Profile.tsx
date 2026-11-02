@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { go, useApp } from '@/lib/app';
 import { useT } from '@/lib/i18n';
 import { fetchPosts } from '@/lib/posts';
-import { sb, uploadImage } from '@/lib/supabase';
+import { AVATAR_SIDE, sb, uploadImage } from '@/lib/supabase';
 import { shareInvite } from '@/lib/invite';
 import type { FriendRequest, Post, Profile } from '@/lib/types';
 import { PostCard } from '../PostCard';
@@ -24,6 +24,7 @@ export default function ProfileScreen({ username }: { username: string }) {
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [busy, setBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -100,13 +101,18 @@ export default function ProfileScreen({ username }: { username: string }) {
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
+    setAvatarBusy(true);
     try {
-      const path = await uploadImage(userId, f, 512);
-      await sb().from('profiles').update({ avatar_path: path }).eq('id', userId);
+      const path = await uploadImage(userId, f, AVATAR_SIDE);
+      const { error } = await sb().from('profiles').update({ avatar_path: path }).eq('id', userId);
+      if (error) throw error;
       await refreshMe();
-      load();
-    } catch {
+      await load();
+    } catch (err) {
+      console.error('avatar upload failed:', err);
       toast(t('error'));
+    } finally {
+      setAvatarBusy(false);
     }
   }
 
@@ -131,13 +137,29 @@ export default function ProfileScreen({ username }: { username: string }) {
 
       <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
         <CircleRing count={circleCount ?? 0} max={max} label={rel === 'self' ? t('myCircle') : t('circle')}>
-          <button onClick={() => rel === 'self' && fileRef.current?.click()} aria-label={rel === 'self' ? t('changePhoto') : p.display_name} style={{ cursor: rel === 'self' ? 'pointer' : 'default', borderRadius: '50%' }}>
-            <Avatar p={p} size={160} />
+          <button
+            onClick={() => rel === 'self' && !avatarBusy && fileRef.current?.click()}
+            aria-label={rel === 'self' ? t('changePhoto') : p.display_name}
+            aria-busy={avatarBusy}
+            style={{ cursor: rel === 'self' ? 'pointer' : 'default', borderRadius: '50%', position: 'relative', display: 'flex' }}
+          >
+            <span style={{ display: 'flex', opacity: avatarBusy ? 0.4 : 1, transition: 'opacity var(--t-fast) var(--ease)' }}>
+              <Avatar p={p} size={160} />
+            </span>
+            {rel === 'self' && (
+              <span className="center avatar-edit" aria-hidden="true">
+                <Icon name={p.avatar_path ? 'camera' : 'plus'} size={18} />
+              </span>
+            )}
           </button>
         </CircleRing>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={changeAvatar} />
         {editing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', textAlign: 'left' }}>
+            <button className="btn fill sm" style={{ alignSelf: 'center' }} disabled={avatarBusy} onClick={() => fileRef.current?.click()}>
+              <Icon name="camera" size={18} />
+              {avatarBusy ? t('loading') : t('changePhoto')}
+            </button>
             <label className="field">
               {t('displayName')}
               <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />

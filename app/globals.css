@@ -282,9 +282,15 @@ button.cell:hover { background: var(--fill); }
 
 /* ---------- Круг 150: кольцо делений в профиле ---------- */
 .ring { position: relative; width: 224px; height: 224px; display: flex; align-items: center; justify-content: center; }
-.ring svg { position: absolute; inset: 0; }
+.ring > svg { position: absolute; inset: 0; }
 .ring line { stroke: var(--text); stroke-linecap: round; opacity: 0.14; transition: opacity 0.5s var(--ease); }
 .ring line.on { opacity: 1; transition-delay: var(--d, 0s); }
+.avatar-edit {
+  position: absolute; right: 4px; bottom: 4px; width: 40px; height: 40px; border-radius: 20px;
+  background: var(--primary); color: var(--on-primary); box-shadow: 0 0 0 4px var(--bg);
+  transition: transform var(--t-fast) var(--ease);
+}
+button:active > .avatar-edit { transform: scale(0.92); }
 
 /* ---------- Полноэкранные слои ---------- */
 .overlay { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; animation: fade var(--t-enter) var(--ease) both; }
